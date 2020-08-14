@@ -322,6 +322,22 @@ def spiral(cname,p1,p2,targc,nturn):
     cc = curve_from_pts(cname,vecs,5,1)
     ob = bpy.data.objects.new(cc.name,cc)          
     return ob
+
+def bezier_from_pts(cname,ve,ve_h):
+    """ Returns BEZIER curve of order from point list ve
+    handles are ALIGNED and right positioned at ve_h
+    """
+    cc = bpy.data.curves.new(name = cname, type='CURVE') 
+    cc.dimensions = '3D'
+    pl = cc.splines.new('BEZIER')
+    pl.bezier_points.add(len(ve)-1)
+    for n,pt in enumerate(pl.bezier_points):
+        pt.co = list(ve[n])
+        pt.handle_left_type = 'ALIGNED'
+        pt.handle_right_type = 'ALIGNED'
+        pt.handle_right = list(ve_h[n])
+    return cc
+
     
 # =====================================================================
 # MESH METHODS
@@ -549,13 +565,29 @@ def set_flat(data):
 # OBJECT METHODS
 
 def empty(name, type = 'PLAIN_AXES', size = 1, pos = [0,0,0]):
-    """ returns empty object with ginve name, type and location pos
+    """ returns empty object with given name, type and location pos
     """
     emp = bpy.data.objects.new(name,None)
     emp.empty_display_type = type
     emp.empty_display_size = size
     emp.location = pos
     return emp
+
+def curve_bezier(name, ve=[[-1,0,0],[1,0,0]], theta=[-pi/4, pi/4], phi=None, pos=[0,0,0]):
+    """ returns curve object of type 'BEZIER' with control points ve and 
+    right_handles controled by angles theta y phi (None is XY plane)
+    """
+    ve_h = []
+    for n,a in enumerate(theta):
+        if phi is not None:
+            slope = Vector((cos(phi[n])*cos(a),cos(phi[n])*sin(a),sin(phi[n])))
+        else:     
+            slope = Vector((cos(a),sin(a),0))
+        ve_h.append(Vector(ve[n])+slope)
+    cu = bezier_from_pts(name,ve,ve_h)
+    ob = bpy.data.objects.new(cu.name,cu)
+    ob.location = pos
+    return ob
 
 def cube(name, mats = None, pos = [0,0,0]): 
     """ returns cube object at location pos with materials mats
@@ -1002,9 +1034,11 @@ def set_colorm(type,expos=0.5):
         scn.sequencer_colorspace_settings.name = 'Filmic Log'
     return
 
-def set_render_output(path, format = 'PNG'):
+def set_render_output(path, format = 'PNG', encoding = None):
     scnr.filepath = path
     scnr.image_settings.file_format = format
+    if format == 'FFMPEG':
+        scnr.ffmpeg.format = encoding
     return
 
 def set_render_eevee(samples = 32, ssr = False, bloom = False, softs = True, gtao = False, refraction = False):
