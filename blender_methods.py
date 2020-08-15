@@ -919,6 +919,14 @@ def animate_curve(p,nameanim,curve,tkeys,fkeys,skeys=None):
                     bt.handle_right = bt.co + Vector((dt, skeys[n]))      
     return ac
 
+def remove_curves(p,nameanim):
+    ac = bpy.data.actions.get(nameanim)
+    if ac is not None:
+        for curve in ac.fcurves:
+            ac.fcurves.remove(curve)
+    return    
+
+
 def animate_object_path(ob,plist,tlist,order=5,w=1,forw='FORWARD_X',up='UP_Z'):
     cc = curve_from_pts('pathanim',plist,order,w)
     co = bpy.data.objects.new(cc.name,cc)
