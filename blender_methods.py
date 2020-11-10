@@ -44,6 +44,11 @@ scne = scn.eevee
 # ================================================================================
 # GEOMETRIC METHODS
 
+def multwise(v1,v2):
+    """ Performs elementwise multiplication between two vectors
+    """
+    return Vector(x * y for x, y in zip(v1, v2))
+
 def vertex(x, y, z, scale = 1): 
     """ Return vertex coordinates fixed to the unit sphere 
     """ 
@@ -238,7 +243,7 @@ def apply_mod(ob,mod):
     bpy.ops.object.select_all(action='DESELECT')
     bpy.context.view_layer.objects.active = ob
     ob.select_set(state = True)
-    bpy.ops.object.modifier_apply(apply_as='DATA', modifier=mod.name)
+    bpy.ops.object.modifier_apply(modifier=mod.name)
     ob.select_set(state = False)
     scno.unlink(ob)
 
@@ -346,13 +351,13 @@ def mesh_for_plane(name,orient=1):
     """ Returns mesh for a default plane with name and orientation
     """
     mesh = bpy.data.meshes.get(name)
-    ve = [ Vector((-1, -1, 0)), Vector((1, -1, 0)), Vector((1, 1, 0)), Vector((-1, 1, 0))]
+    ve = [ Vector((-1, -1, 0)), Vector((1, -1, 0)), Vector((-1, 1, 0)), Vector((1, 1, 0))]
     if mesh is None:
         mesh = bpy.data.meshes.new(name)
         if orient == 1:
-            fa = [(0,1,2,3)]
+            fa = [(0,2,3,1)]
         else:    
-            fa = [(3,2,1,0)]
+            fa = [(0,1,3,2)]
         mesh.from_pydata(ve, [], fa)
     return mesh
 
@@ -363,9 +368,9 @@ def mesh_for_planeve(name,ve,orient=1):
     if mesh is None:
         mesh = bpy.data.meshes.new(name)
         if orient == 1:
-            fa = [(0,1,2,3)]
+            fa = [(0,2,3,1)]
         else:    
-            fa = [(3,2,1,0)]
+            fa = [(0,1,3,2)]
         mesh.from_pydata(ve, [], fa)
     return mesh
 
@@ -403,11 +408,11 @@ def mesh_for_cube(name,zorigin=0):
     if mesh is None:
         mesh = bpy.data.meshes.new(name)
         ve = [ Vector((-0.5, -0.5, -zorigin)), Vector((0.5, -0.5, -zorigin)),
-           Vector((0.5, 0.5, -zorigin)), Vector((-0.5, 0.5, -zorigin))]
+           Vector((-0.5, 0.5, -zorigin)), Vector((0.5, 0.5, -zorigin))]
         ve.extend([v + Vector((0,0,1)) for v in ve])
-        fa=[(3,2,1,0),(4,5,6,7),
-            (0,1,5,4),(1,2,6,5),
-            (2,3,7,6),(3,0,4,7)]
+        fa=[(0,2,3,1),(0,1,5,4),
+            (1,3,7,5),(3,2,6,7),
+            (2,0,4,6),(4,5,7,6)]
         mesh.from_pydata(ve, [], fa)
     return mesh
 
@@ -416,7 +421,7 @@ def mesh_for_recboard(name,xs,ys,zs):
     located in xs[0] xs[1], yx[0] ys[1], and zs[0] zs[1]
     """     
     ve = [Vector((xs[0],ys[0],zs[0])),Vector((xs[1],ys[0],zs[0])),
-      Vector((xs[1],ys[1],zs[0])),Vector((xs[0],ys[1],zs[0]))]
+      Vector((xs[0],ys[1],zs[0])),Vector((xs[1],ys[1],zs[0]))]
     if (zs[1]!=zs[0]):  
         me = mesh_for_board(name,ve,zs[1])
     else:
@@ -430,11 +435,11 @@ def mesh_for_board(name,vertices,thick):
     if mesh is None:
         mesh = bpy.data.meshes.new(name)
         ve = vertices
-        ve.extend([v + Vector((0,0,-thick)) for v in ve])
+        ve.extend([v + Vector((0,0,thick)) for v in ve])
         #Inverted!
-        fa = [(3,2,1,0), (4,5,6,7),
-            (0,1,5,4), (1,2,6,5),   
-            (2,3,7,6), (3,0,4,7)]
+        fa = [(0,2,3,1),(0,1,5,4),
+            (1,3,7,5),(3,2,6,7),
+            (2,0,4,6),(4,5,7,6)]
         mesh.from_pydata(ve, [], fa)
     return mesh
 
@@ -548,6 +553,28 @@ def mesh_for_tube(n,m,name,r=1.0, h=1.0, zorigin=0.0):
         mesh.from_pydata(ve, [], fa)
     return mesh
 
+def mesh_for_frame(name,dims_hole,dims_frame):
+    """ Return mesh for a frame enclosing a rectangular hole of dimension dims_hole
+    dims_frame give the width and thickness of the frame
+    """
+    mesh = bpy.data.meshes.get(name)
+    if mesh is None:
+        mesh = bpy.data.meshes.new(name)
+        v1 = Vector((-dims_frame[1],dims_frame[0],dims_frame[0]+dims_frame[1]))
+        (w1,w2,w3) = dims_hole[0]/2*Vector((1,1,1))+v1
+        (h1,h2,h3) = dims_hole[1]/2*Vector((1,1,1))+v1
+        (d1,d2) = [dims_hole[2]/2,dims_hole[2]/2+dims_frame[1]]
+        ve = [Vector((w1,d2,h1)),Vector((w1,d2,-h1)),Vector((-w1,d2,-h1)),Vector((-w1,d2,h1)),
+        Vector((w2,d2,h2)),Vector((w2,d2,-h2)),Vector((-w2,d2,-h2)),Vector((-w2,d2,h2)),
+        Vector((w3,d1,h3)),Vector((w3,d1,-h3)),Vector((-w3,d1,-h3)),Vector((-w3,d1,h3))]
+        ve.extend([multwise(v,Vector((1,-1,1))) for v in ve])
+        fa = [(1,0,4,5),(2,1,5,6),(3,2,6,7),(0,3,7,4),(5,4,8,9),(6,5,9,10),(7,6,10,11),(4,7,11,8),
+        (12,13,17,16),(13,14,18,17),(14,15,19,18),(15,12,16,19),(16,17,21,20),(17,18,22,21),
+        (18,19,23,22),(19,16,20,23),(0,1,13,12),(1,2,14,13),(2,3,15,14),(3,0,12,15)]
+        mesh.from_pydata(ve, [], fa)
+        mesh.update(calc_edges=True)
+    return mesh
+        
 def set_smooth(data):
     """ sets shading smooth for all faces
     """
@@ -629,21 +656,46 @@ def floor(name, mats = None, pos=[0,0,0],dims=[1,1,0.1],flip=0):
     print(ob.name)
     return ob
 
-def wall(name, mats = None, pos=[0,0,0],rot=0, dims=[1,1,0.1]):
+def wall(name, mats = None, pos=[0,0,0],rot=0, dims=[1,1,0.1], basemat = None, basedim = None):
     """ convenience function returning a vertical rectangular board with material mats,
     dimensions dims, located at pos and with z rotation rot
+    it also can add a base of basedim size with material basemat
     """
-    dx=dims[0]/2
-    dy=dims[2]/2
-    dz=dims[1]/2
-    me = mesh_for_recboard(name,[-dx,dx],[-dy,dy],[dz,2*dz])
+    length=dims[0]
+    thick=dims[2]
+    height=dims[1] 
+    me = mesh_for_recboard(name,[-length/2,length/2],[0,thick],[0,height])
     ob = bpy.data.objects.new(me.name,me)
     ob.location = pos
     ob.rotation_euler[2] = rot
     if mats is not None:
         ob.data.materials.append(mats)
-    print(ob.name)
-    return ob
+    if basedim is not None:
+        name = name + '_base'
+        me = mesh_for_recboard(name,[-length/2,length/2],[-basedim[1],0],[0,basedim[0]])
+        ba = bpy.data.objects.new(me.name,me)
+        ba.location = pos
+        ba.rotation_euler[2] = rot
+        ba.data.materials.append(basemat)
+        print(ob.name, ba.name)
+        return ob, ba
+    else:
+        print(ob.name)
+        return ob
+
+def frame(name, mats=None, pos=[0,0,0], rot=0, dims_hole=[1,1,0.2], dims_frame=[0.1,0.01]):    
+    """ specialized function returning a frame with material mats for a rectangular hole
+    of dimensions dims_hole located at pos with z rotation rot. dims frame give the
+    depth, width and thickness of the frame
+    """
+    me = mesh_for_frame(name,dims_hole,dims_frame)
+    ob = bpy.data.objects.new(me.name,me)
+    ob.location = pos
+    ob.rotation_euler[2] = rot
+    if mats is not None:
+        ob.data.materials.append(mats)
+    print(ob.name)    
+    return ob    
 
 def polygon(name, vertlist, mats = None, pos=[0,0,0],thick = 0.05):
     """ returns polygonal object determined by list of vertices vertlist with material mats
@@ -1042,11 +1094,14 @@ def set_colorm(type,expos=0.5):
         scn.sequencer_colorspace_settings.name = 'Filmic Log'
     return
 
-def set_render_output(path, format = 'PNG', encoding = None):
+def set_render_output(path, format = 'PNG', quality=90, encoding = None, codec=None):
     scnr.filepath = path
     scnr.image_settings.file_format = format
+    if format == 'JPEG':
+        scnr.image_settings.quality = quality
     if format == 'FFMPEG':
         scnr.ffmpeg.format = encoding
+        scnr.ffmpeg.codec = codec
     return
 
 def set_render_eevee(samples = 32, ssr = False, bloom = False, softs = True, gtao = False, refraction = False):
@@ -1063,13 +1118,15 @@ def set_render_eevee(samples = 32, ssr = False, bloom = False, softs = True, gta
     scne.shadow_cascade_size = '1024'
     return
 
-def set_render_cycles(samples = 32, clmp = 3.0, blur = 1.0, caustics = False, denoise  = True):
+def set_render_cycles(samples = 32, clmp = 3.0, blur = 1.0, caustics = False, denoise  = True, ao = False, ao_dist=10):
     set_cycles()
     scn.cycles.samples = samples
     scn.cycles.sample_clamp_indirect = clmp    
     scn.cycles.blur_glossy = blur
     scn.cycles.caustics_refractive = caustics
     scn.cycles.use_denoising = denoise
+    scnw.light_settings.use_ambient_occlusion = ao
+    scnw.light_settings.distance = ao_dist
     return
 
 def render_cam(cam = None, anim = False, frame_ini=-1, frame_end=-1):
