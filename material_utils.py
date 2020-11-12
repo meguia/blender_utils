@@ -59,14 +59,26 @@ class Mapping:
 # UTILITIES
 
 keynames = {
-    'color' : ['COL', 'diffuse', 'Color'] , 
-    'metal' : ['METAL', 'metal','Metallic'],
+    'color' : ['COL', 'diffuse', 'Color','color'] , 
+    'metal' : ['METAL', 'metal','Metallic','metallic'],
     'specular': ['REFL','specular','Specular'], 
     'roughness' : ['ROUGH','roughness','Roughness'] ,
     'gloss' : ['GLOSS','glossiness','Glossiness'],
     'normal' : ['NRM','normal','Normal'], 
-    'bump' : ['DISP','displace','bump','Height']
+    'bump' : ['DISP','displace','bump','Height','height']
     }
+
+def check_imagedict(path,keys):
+    """
+    Check if path contains all keynames in keys
+    return an array of booleans     
+    """ 
+    keynames_sub = {key: keynames[key] for key in keys}
+    flist = os.listdir(path)
+    checked = []
+    for k,v in keynames_sub.items():
+          checked.append(any(vn in f for vn in v for f in flist))
+    return checked      
                 
 def make_imagedict(path):
     """ search for image files in path with matching keynames 
