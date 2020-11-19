@@ -1,6 +1,6 @@
 import bpy
 from mathutils import Vector, Euler, Color
-from math import pi, sin, cos, copysign, ceil, sqrt
+from math import pi, sin, cos, copysign, ceil, sqrt, radians
 
 scn = bpy.context.scene
 scnc = scn.collection
@@ -260,6 +260,16 @@ def join(oblist):
     scno.unlink(oblist[0])
     return oblist[0]
 
+def simple_subdivide(ob,ncuts):
+    """ Subdivide using operator only for linked objects
+    """
+    bpy.ops.object.select_all(action='DESELECT')
+    ob.select_set(state = True)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.subdivide(number_cuts=ncuts)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    
+    
 def curve_to_beam(ob,thick,width):        
     scno.link(ob)
     bpy.context.view_layer.objects.active = ob
@@ -743,7 +753,7 @@ def hole(ob,hpos,hsize):
     return
 
 def arraymod(ob,count=2,off_relative=None,off_constant=None,obj2=None):
-    """ returns an array modifier for object sepcifying count,
+    """ returns an array modifier for object specifying count,
     relative or constant offset and eventually using an object object obj2
     """
     a1 = ob.modifiers.new('A1','ARRAY')
@@ -759,6 +769,18 @@ def arraymod(ob,count=2,off_relative=None,off_constant=None,obj2=None):
         a1.use_object_offset = True
         a1.offset_object = obj2
     return a1    
+
+def deformmod(ob,name='D1',method='TWIST',axis='X',angle=10,limits=[0,1]):
+    """ returns a simple deform modifier with method (twist,bend,taper,stretch)
+    for object along axis with angle
+    """
+    d1 = ob.modifiers.new(name,'SIMPLE_DEFORM')
+    d1.deform_axis = axis
+    d1.deform_method = method
+    d1.angle = radians(angle)
+    d1.limits = limits
+    return d1
+
 
 def makecube(camrig, pos=(200,200,100)):
     """ convenience function returning a cube for equirectangular rendering 
