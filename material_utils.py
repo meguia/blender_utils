@@ -141,7 +141,7 @@ def gray(val,alpha=1):
 # MATERIALS
 
 
-def simple_material(matName,color,subcolor=None,specular=0,rough=0,metal=0,subsurf=0,emission=[0,0,0,1]):
+def simple_material(matName,basecolor,subcolor=None,specular=0,roughness=0,metallic=0,subsurf=0,emission=[0,0,0,1]):
     """ Simple Principled Material with name matName specifying 
     color, specular, roughness and metallic values, and Subsurface
     """    
@@ -149,10 +149,10 @@ def simple_material(matName,color,subcolor=None,specular=0,rough=0,metal=0,subsu
     #m.make_material(matName)
     materialOutput = m.nodes['Material Output']
     PBSDF = m.nodes['Principled BSDF']
-    PBSDF.inputs["Base Color"].default_value = color
+    PBSDF.inputs["Base Color"].default_value = basecolor
     PBSDF.inputs["Specular"].default_value = specular
-    PBSDF.inputs["Roughness"].default_value = rough
-    PBSDF.inputs["Metallic"].default_value = metal
+    PBSDF.inputs["Roughness"].default_value = roughness
+    PBSDF.inputs["Metallic"].default_value = metallic
     PBSDF.inputs["Emission"].default_value = emission
     if subcolor is not None:
         PBSDF.inputs["Subsurface"].default_value = subsurf
@@ -160,7 +160,7 @@ def simple_material(matName,color,subcolor=None,specular=0,rough=0,metal=0,subsu
     m.mat.diffuse_color = color
     return m.mat
     
-def texture_simple_material(matName,image,extension='REPEAT',projection='FLAT',specular=0,rough=0,metal=0,
+def texture_simple_material(matName,image,extension='REPEAT',projection='FLAT',specular=0,roughness=0,metallic=0,
                             mapping=None):
     """ Simple Textured Principled Material with name matName from a single texture image 
     as base color, with specular, roughness and metallic values
@@ -170,8 +170,8 @@ def texture_simple_material(matName,image,extension='REPEAT',projection='FLAT',s
     materialOutput = m.nodes['Material Output']
     PBSDF = m.nodes['Principled BSDF']
     PBSDF.inputs["Specular"].default_value = specular
-    PBSDF.inputs["Roughness"].default_value = rough
-    PBSDF.inputs["Metallic"].default_value = metal
+    PBSDF.inputs["Roughness"].default_value = roughness
+    PBSDF.inputs["Metallic"].default_value = metallic
     Tex = add_image_texture(m,image,'Color',extension,projection)
     m.link(Tex,'Color',PBSDF,'Base Color')
     if mapping is not None:
@@ -180,7 +180,7 @@ def texture_simple_material(matName,image,extension='REPEAT',projection='FLAT',s
     return m.mat    
 
 def texture_simple_material_using_channels(matName,image,extension='REPEAT', projection='FLAT',RoughChan='G',
-                                            BumpChan='R',specular=0,metal=0,bump = 0.5, mapping=None):
+                                            BumpChan='R',specular=0,metallic=0,height = 0.5, mapping=None):
     """ Simple textured material from a single texture image as base color and using 
     channels Bumpchan and Roughchan as inputs for displacement and roughness
     """
@@ -189,12 +189,12 @@ def texture_simple_material_using_channels(matName,image,extension='REPEAT', pro
     materialOutput = m.nodes['Material Output']
     PBSDF = m.nodes['Principled BSDF']
     PBSDF.inputs["Specular"].default_value = specular
-    PBSDF.inputs["Metallic"].default_value = metal
+    PBSDF.inputs["Metallic"].default_value = metallic
     RGB = m.makeNode('ShaderNodeSeparateRGB','Separate RGB', xpos = -430, ypos = 100)
     Bump = m.makeNode('ShaderNodeBump','Bump', xpos = -200, ypos = -130)
     HSV = m.makeNode('ShaderNodeHueSaturation','HSV', xpos = -200)
     Ramp = m.makeNode('ShaderNodeValToRGB','Color Ramp', xpos = -250, ypos = 100) 
-    Bump.inputs["Strength"].default_value = bump
+    Bump.inputs["Strength"].default_value = height
     Tex = add_image_texture(m,image,'Color',extension,projection)
     m.link(Tex,'Color',HSV,'Color')
     m.link(Tex,'Color',RGB,'Image')
@@ -208,8 +208,8 @@ def texture_simple_material_using_channels(matName,image,extension='REPEAT', pro
         m.link(Map,'Vector',Tex,'Vector')
     return m.mat    
 
-def texture_full_material(matName,imagedict,extension='REPEAT', projection='FLAT', metal=0,norm = 0.2, 
-                            bump = 0.5, specular=0.8, roughness = 0.05, mapping = None):
+def texture_full_material(matName,imagedict,extension='REPEAT', projection='FLAT', metallic=0,normal = 0.2, 
+                            height = 0.5, specular=0.8, roughness = 0.05, mapping = None):
     """ returns a full material using imagedict dictionary containing keys and images. 
     Image Texture Node is added only if key exists
     """
@@ -219,22 +219,22 @@ def texture_full_material(matName,imagedict,extension='REPEAT', projection='FLAT
     #m.make_material(matName)
     materialOutput = m.nodes['Material Output']
     PBSDF = m.nodes['Principled BSDF']
-    Tex_color = add_image_texture(m,imagedict['color'],'Color',extension,projection)
+    Tex_color = add_image_texture(m,imagedict['basecolor'],'Base Color',extension,projection)
     m.link(Tex_color,'Color',PBSDF,'Base Color')
     Tex_color.hide = True
     if mapping is not None:
         Map = add_mapping(m,mapping)
         m.link(Map,'Vector',Tex_color,'Vector')
-    if 'metal' in imagedict.keys():
+    if 'metallic' in imagedict.keys():
         ycor = ycor -100
         loc = Vector((xcor,ycor))
-        Tex_metal = add_image_texture(m,imagedict['metal'],'Metal',extension,projection,location=loc,colorspace='Non-Color')
+        Tex_metal = add_image_texture(m,imagedict['metallic'],'Metallic',extension,projection,location=loc,colorspace='Non-Color')
         m.link(Tex_metal,'Color',PBSDF,'Metallic')
         Tex_metal.hide = True
         if mapping is not None:
             m.link(Map,'Vector',Tex_metal,'Vector')
     else:
-        PBSDF.inputs["Metallic"].default_value = metal
+        PBSDF.inputs["Metallic"].default_value = metallic
     if 'specular' in imagedict.keys():
         ycor = ycor -100
         loc = Vector((xcor,ycor))
@@ -265,13 +265,13 @@ def texture_full_material(matName,imagedict,extension='REPEAT', projection='FLAT
         Tex_gloss.hide = True
         if mapping is not None:
             m.link(Map,'Vector',Tex_gloss,'Vector')
-    if 'bump' in imagedict.keys():
+    if 'height' in imagedict.keys():
         ycor = ycor -100
         xcor = xcor - 200
         loc = Vector((xcor,ycor))
-        Tex_bump = add_image_texture(m,imagedict['bump'],'Displacement',extension,projection,location=loc,colorspace='Non-Color')
+        Tex_bump = add_image_texture(m,imagedict['height'],'Displacement',extension,projection,location=loc,colorspace='Non-Color')
         Bump =  m.makeNode('ShaderNodeBump','Bump', xpos = xcor+300, ypos = ycor)
-        Bump.inputs['Strength'].default_value = bump
+        Bump.inputs['Strength'].default_value = height
         m.link(Tex_bump,'Color',Bump,'Height')
         m.link(Bump,'Normal',PBSDF,'Normal')
         Tex_bump.hide = True   
@@ -282,7 +282,7 @@ def texture_full_material(matName,imagedict,extension='REPEAT', projection='FLAT
         loc = Vector((xcor-200,ycor))
         Tex_normal = add_image_texture(m,imagedict['normal'],'Normal',extension,projection,location=loc,colorspace='Non-Color')
         Nmap =  m.makeNode('ShaderNodeNormalMap','NormalMap', xpos = xcor+100, ypos = ycor)
-        Nmap.inputs['Strength'].default_value = norm
+        Nmap.inputs['Strength'].default_value = normal
         m.link(Tex_normal,'Color',Nmap,'Color')
         if 'bump' in imagedict.keys():
             m.link(Nmap,'Normal',Bump,'Normal')
