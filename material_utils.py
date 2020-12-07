@@ -59,13 +59,13 @@ class Mapping:
 # UTILITIES
 
 keynames = {
-    'color' : ['COL', 'diffuse', 'Color','color'] , 
-    'metal' : ['METAL', 'metal','Metallic','metallic'],
+    'basecolor' : ['COL', 'diffuse', 'Color','color'] , 
+    'metallic' : ['METAL', 'metal','Metallic','metallic'],
     'specular': ['REFL','specular','Specular'], 
     'roughness' : ['ROUGH','roughness','Roughness'] ,
     'gloss' : ['GLOSS','glossiness','Glossiness'],
     'normal' : ['NRM','normal','Normal'], 
-    'bump' : ['DISP','displace','bump','Height','height']
+    'height' : ['DISP','displace','bump','Height','height']
     }
 
 def check_imagedict(path,keys):
