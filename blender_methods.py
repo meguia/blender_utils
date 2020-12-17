@@ -447,11 +447,37 @@ def mesh_for_board(name,vertices,thick):
         ve = vertices
         ve.extend([v + Vector((0,0,thick)) for v in ve])
         #Inverted!
-        fa = [(0,2,3,1),(0,1,5,4),
-            (1,3,7,5),(3,2,6,7),
-            (2,0,4,6),(4,5,7,6)]
+        fa = [(0,2,3,1),(1,3,7,5),(2,0,4,6),(4,5,7,6),
+            (0,1,5,4),(3,2,6,7)]
         mesh.from_pydata(ve, [], fa)
     return mesh
+
+def mesh_for_recboard_with_hole(name,xs,ys,zs,xy,wh,internal=True):
+    """ Returns mesh for a rectangular board vith vertices
+    located in xs[0] xs[1], yx[0] ys[1], and zs[0] zs[1]
+    and a hole located in xy[0], xy[1] of size wh[0] by wh[1]
+    """
+    ve = [Vector((xs[0],ys[0],zs[0])),Vector((xs[1],ys[0],zs[0])),
+      Vector((xs[0],ys[1],zs[0])),Vector((xs[1],ys[1],zs[0]))]
+    ve.extend([v + Vector((0,0,zs[1])) for v in ve])
+    ve2 = [Vector((xs[0]+xy[0],ys[0],zs[0]+xy[1])),Vector((xs[0]+xy[0]+wh[0],ys[0],zs[0]+xy[1])),
+    Vector((xs[0]+xy[0],ys[1],zs[0]+xy[1])),Vector((xs[0]+xy[0]+wh[0],ys[1],zs[0]+xy[1]))]
+    ve2.extend([v + Vector((0,0,wh[1])) for v in ve2])
+    ve.extend(ve2)
+    if internal:
+        fa = [(0,2,3,1),(1,3,7,5),(2,0,4,6),(4,5,7,6),
+            (8,9,11,10),(11,9,13,15),(8,10,14,12),(12,14,15,13),
+            (0,1,5,13,9,8),(4,0,8,12,13,5),(3,2,10,11,15,7),(2,6,7,15,14,10)] 
+    else:        
+        fa = [(0,2,3,1),(1,3,7,5),(2,0,4,6),(4,12,14,6),(13,5,7,15),
+            (8,9,11,10),(11,9,13,15),(8,10,14,12),
+            (0,1,5,13,9,8),(4,0,8,12),(3,2,10,11,15,7),(2,6,14,10)] 
+
+    mesh = bpy.data.meshes.get(name)
+    if mesh is None:
+        mesh = bpy.data.meshes.new(name)
+        mesh.from_pydata(ve, [], fa)
+    return mesh    
 
 def mesh_for_lbeam(name,width,thick,length):
     """ Return mesh for square L beam of given width, length and thickness
@@ -666,15 +692,21 @@ def floor(name, mats = None, pos=[0,0,0],dims=[1,1,0.1],flip=0):
     print(ob.name)
     return ob
 
-def wall(name, mats = None, pos=[0,0,0],rot=0, dims=[1,1,0.1], basemat = None, basedim = None):
+def wall(name, mats = None, pos=[0,0,0],rot=0, dims=[1,1,0.1], hole=None, basemat = None, basedim = None):
     """ convenience function returning a vertical rectangular board with material mats,
     dimensions dims, located at pos and with z rotation rot
     it also can add a base of basedim size with material basemat
+    if hole is an array [x,y,w,h] adds a hole at position x,y relative to te lower left 
+    corner of width w and height h
     """
     length=dims[0]
     thick=dims[2]
     height=dims[1] 
-    me = mesh_for_recboard(name,[-length/2,length/2],[0,thick],[0,height])
+    if hole is None:
+        me = mesh_for_recboard(name,[-length/2,length/2],[0,thick],[0,height])
+    else:
+        (x,y,w,h) = hole
+        me = mesh_for_recboard_with_hole(name,[-length/2,length/2],[0,thick],[0,height],[x,y],[w,h])    
     ob = bpy.data.objects.new(me.name,me)
     ob.location = pos
     ob.rotation_euler[2] = rot
@@ -682,7 +714,12 @@ def wall(name, mats = None, pos=[0,0,0],rot=0, dims=[1,1,0.1], basemat = None, b
         ob.data.materials.append(mats)
     if basedim is not None:
         name = name + '_base'
-        me = mesh_for_recboard(name,[-length/2,length/2],[-basedim[1],0],[0,basedim[0]])
+        if hole is None:
+            me = mesh_for_recboard(name,[-length/2,length/2],[-basedim[1],0],[0,basedim[0]])
+        else:
+            (x,y,w,h) = hole
+            me = mesh_for_recboard_with_hole(name,[-length/2,length/2],[-basedim[1],0],[0,basedim[0]],
+                [x,y],[w,basedim[0]-y],internal=False)    
         ba = bpy.data.objects.new(me.name,me)
         ba.location = pos
         ba.rotation_euler[2] = rot
@@ -748,6 +785,8 @@ def hole(ob,hpos,hsize):
     h1 = ob.modifiers.new('H1','BOOLEAN')
     h1.object = ob1
     h1.operation = 'DIFFERENCE'
+    # for Blender >= 2.91
+    #h1.solver = 'FAST'
     apply_mod(ob,h1)
     bpy.data.objects.remove(ob1)
     return
