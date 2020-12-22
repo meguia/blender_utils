@@ -157,7 +157,8 @@ def simple_material(matName,basecolor,subcolor=None,specular=0,roughness=0,metal
     if subcolor is not None:
         PBSDF.inputs["Subsurface"].default_value = subsurf
         PBSDF.inputs["Subsurface Color"].default_value = subcolor
-    m.mat.diffuse_color = color
+    m.mat.diffuse_color = basecolor
+    m.link(PBSDF,'BSDF',materialOutput,'Surface')
     return m.mat
     
 def texture_simple_material(matName,image,extension='REPEAT',projection='FLAT',specular=0,roughness=0,metallic=0,
@@ -177,6 +178,7 @@ def texture_simple_material(matName,image,extension='REPEAT',projection='FLAT',s
     if mapping is not None:
         Map = add_mapping(m,mapping)
         m.link(Map,'Vector',Tex,'Vector')
+    m.link(PBSDF,'BSDF',materialOutput,'Surface')    
     return m.mat    
 
 def texture_simple_material_using_channels(matName,image,extension='REPEAT', projection='FLAT',RoughChan='G',
@@ -206,10 +208,11 @@ def texture_simple_material_using_channels(matName,image,extension='REPEAT', pro
     if mapping is not None:
         Map = add_mapping(m,mapping)
         m.link(Map,'Vector',Tex,'Vector')
+    m.link(PBSDF,'BSDF',materialOutput,'Surface')
     return m.mat    
 
 def texture_full_material(matName,imagedict,extension='REPEAT', projection='FLAT', metallic=0,normal = 0.2, 
-                            height = 0.5, specular=0.8, roughness = 0.05, mapping = None):
+                            height = 0.05, specular=0.8, roughness = 0.05, mapping = None, displacement = False):
     """ returns a full material using imagedict dictionary containing keys and images. 
     Image Texture Node is added only if key exists
     """
@@ -270,13 +273,19 @@ def texture_full_material(matName,imagedict,extension='REPEAT', projection='FLAT
         xcor = xcor - 200
         loc = Vector((xcor,ycor))
         Tex_bump = add_image_texture(m,imagedict['height'],'Displacement',extension,projection,location=loc,colorspace='Non-Color')
-        Bump =  m.makeNode('ShaderNodeBump','Bump', xpos = xcor+300, ypos = ycor)
-        Bump.inputs['Strength'].default_value = height
-        m.link(Tex_bump,'Color',Bump,'Height')
-        m.link(Bump,'Normal',PBSDF,'Normal')
         Tex_bump.hide = True   
         if mapping is not None:
             m.link(Map,'Vector',Tex_bump,'Vector') 
+        if displacement:
+            Displ =  m.makeNode('ShaderNodeDisplacement','Displacement', xpos = xcor+300, ypos = ycor)
+            Displ.inputs['Scale'].default_value = height
+            m.link(Tex_bump,'Color',Displ,'Height')
+            m.link(Displ,'Displacement',materialOutput,'Displacement')
+        else:    
+            Bump =  m.makeNode('ShaderNodeBump','Bump', xpos = xcor+300, ypos = ycor)
+            Bump.inputs['Strength'].default_value = height
+            m.link(Tex_bump,'Color',Bump,'Height')
+            m.link(Bump,'Normal',PBSDF,'Normal')      
     if 'normal' in imagedict.keys():
         ycor = ycor -100
         loc = Vector((xcor-200,ycor))
@@ -284,13 +293,14 @@ def texture_full_material(matName,imagedict,extension='REPEAT', projection='FLAT
         Nmap =  m.makeNode('ShaderNodeNormalMap','NormalMap', xpos = xcor+100, ypos = ycor)
         Nmap.inputs['Strength'].default_value = normal
         m.link(Tex_normal,'Color',Nmap,'Color')
-        if 'bump' in imagedict.keys():
+        if 'height' in imagedict.keys() and not displacement:
             m.link(Nmap,'Normal',Bump,'Normal')
         else:
             m.link(Nmap,'Normal',PBSDF,'Normal')
         Tex_normal.hide = True
         if mapping is not None:
             m.link(Map,'Vector',Tex_normal,'Vector')
+    m.link(PBSDF,'BSDF',materialOutput,'Surface')        
     return m.mat    
 
 def emission_material(matName,image,pow=1.0,ob_coord=None):
