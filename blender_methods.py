@@ -378,9 +378,9 @@ def mesh_for_planeve(name,ve,orient=1):
     if mesh is None:
         mesh = bpy.data.meshes.new(name)
         if orient == 1:
-            fa = [(0,2,3,1)]
-        else:    
             fa = [(0,1,3,2)]
+        else:    
+            fa = [(0,2,3,1)]
         mesh.from_pydata(ve, [], fa)
     return mesh
 
@@ -636,6 +636,16 @@ def empty(name, type = 'PLAIN_AXES', size = 1, pos = [0,0,0]):
     emp.location = pos
     return emp
 
+def rectangle(name, lx, ly, origin=[0,0], pos=[0,0,0]):
+    """ returns a plane rectangle of dimensions lx by ly
+    """
+    (x0,y0) = origin
+    ve = [ Vector((x0,y0,0)), Vector((x0+lx,y0,0)), Vector((x0,y0+ly,0)), Vector((x0+lx,y0+ly,0))]
+    me = mesh_for_planeve(name,ve)
+    ob = bpy.data.objects.new(me.name,me)
+    ob.location = pos
+    return ob
+
 def curve_bezier(name, ve=[[-1,0,0],[1,0,0]], theta=[-pi/4, pi/4], phi=None, pos=[0,0,0]):
     """ returns curve object of type 'BEZIER' with control points ve and 
     right_handles controled by angles theta y phi (None is XY plane)
@@ -772,6 +782,9 @@ def icosphere(name, mats=None, pos=[0,0,0],r = 1,sub = 2, smooth = True):
         ob.data.materials.append(mats)
     print(ob.name)
     return ob
+###################################################################################
+# MODIFIER METHODS
+
 
 def hole(ob,hpos,hsize):
     """ makes a hole of size hsize at position hpos in object ob 
@@ -808,6 +821,41 @@ def arraymod(ob,count=2,off_relative=None,off_constant=None,obj2=None):
         a1.use_object_offset = True
         a1.offset_object = obj2
     return a1    
+
+def tile_fill(name,dx,dy,Lx,Ly,offset=1):
+    """
+    Returns a rectangle object of dimensions dx by dy tiled 
+    filling a rectangle of Lx by Ly with cuts in the end
+    the relative offset of the array can be modified from the default
+    """
+    Nx = int(Lx//(dx*offset))
+    Ny = int(Ly//(dy*offset))
+    fx = Lx%(dx*offset)
+    fy = Ly%(dy*offset)
+    print(fx)
+    tile = rectangle(name,dx, dy)
+    tilex = rectangle(name+'x',fx*dx, dy)
+    tiley = rectangle(name+'y',dx, fy*dy)
+    tilexy = rectangle(name+'xy',fx*dx, fy*dy)
+    a1 = tilex.modifiers.new('A1','ARRAY')
+    a1.count = Ny
+    a1.use_relative_offset = True
+    a1.relative_offset_displace = Vector((0,offset,0))
+    a1.end_cap = tilexy
+    a2 = tile.modifiers.new('A2','ARRAY')
+    a2.count = Ny
+    a2.use_relative_offset = True
+    a2.relative_offset_displace = Vector((0,offset,0))
+    a2.end_cap = tiley
+    a3 = tile.modifiers.new('A3','ARRAY')
+    a3.count = Nx
+    a3.use_relative_offset = True
+    a3.relative_offset_displace = Vector((offset,0,0))
+    a3.end_cap = tilex
+    return tile
+
+
+
 
 def deformmod(ob,name='D1',method='TWIST',axis='X',angle=10,limits=[0,1]):
     """ returns a simple deform modifier with method (twist,bend,taper,stretch)
