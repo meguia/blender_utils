@@ -24,8 +24,6 @@ def uv_board(mesh, dims, front=0, scale=None, withLM=True,  rot90 = False, name1
     bm = bmesh.new()
     bm.from_mesh(mesh)
     uv_1 = bm.loops.layers.uv[name1]
-    if withLM:
-        uv_2 = bm.loops.layers.uv[name2]
     (l,h,e) = dims
     if scale is None:
         scale = h
@@ -47,6 +45,7 @@ def uv_board(mesh, dims, front=0, scale=None, withLM=True,  rot90 = False, name1
 
     assign_uv(bm,uvs,uv_idcs,uv_1,scale,(-e,-e))
     if withLM:
+        uv_2 = bm.loops.layers.uv[name2]
         assign_uv(bm,uvs,uv_idcs,uv_2,s)
     bm.to_mesh(mesh)
     bm.free()
@@ -61,10 +60,8 @@ def uv_board_with_hole(mesh, dims, hole, scale=None, withLM=True,  rot90 = False
     bm = bmesh.new()
     bm.from_mesh(mesh)
     uv_1 = bm.loops.layers.uv[name1]
-    if withLM:
-        uv_2 = bm.loops.layers.uv[name2]
     (l,h,e) = dims
-    (x,y,w,z) = hole # posicion alto y ancho de hole
+    (x,y,w,z) = hole[:4] # posicion alto y ancho de hole
     if scale is None:
         scale = h
     s = max(l+2*e,2*h+2*e)
@@ -97,6 +94,7 @@ def uv_board_with_hole(mesh, dims, hole, scale=None, withLM=True,  rot90 = False
                                
     assign_uv(bm,uvs,uv_idcs,uv_1,scale)
     if withLM:
+        uv_2 = bm.loops.layers.uv[name2]
         assign_uv(bm,uvs,uv_idcs,uv_2,s)
     bm.to_mesh(mesh)
     bm.free()         
@@ -124,8 +122,6 @@ def uv_planks(mesh, scale=None, withLM=True,  rot90 = False, name1='UVMap', name
         width.append(a/sm)
         
     uv_1 = bm.loops.layers.uv[name1]
-    if withLM:
-        uv_2 = bm.loops.layers.uv[name2]
     if scale is None:
         scale = sum(width)
     s = max(max(length),sum(width))
@@ -142,6 +138,7 @@ def uv_planks(mesh, scale=None, withLM=True,  rot90 = False, name1='UVMap', name
         uvs =  list(map(lambda s: (s[1],s[0]), uvs))        
     assign_uv(bm,uvs,uv_idcs,uv_1,scale)
     if withLM:
+        uv_2 = bm.loops.layers.uv[name2]
         assign_uv(bm,uvs,uv_idcs,uv_2,s)
     bm.to_mesh(mesh)
     bm.free()         

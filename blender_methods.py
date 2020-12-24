@@ -715,7 +715,7 @@ def wall(name, mats = None, pos=[0,0,0],rot=0, dims=[1,1,0.1], hole=None, basema
     if hole is None:
         me = mesh_for_recboard(name,[-length/2,length/2],[0,thick],[0,height])
     else:
-        (x,y,w,h) = hole
+        (x,y,w,h) = hole[:4]
         me = mesh_for_recboard_with_hole(name,[-length/2,length/2],[0,thick],[0,height],[x,y],[w,h])    
     ob = bpy.data.objects.new(me.name,me)
     ob.location = pos
@@ -727,7 +727,7 @@ def wall(name, mats = None, pos=[0,0,0],rot=0, dims=[1,1,0.1], hole=None, basema
         if hole is None:
             me = mesh_for_recboard(name,[-length/2,length/2],[-basedim[1],0],[0,basedim[0]])
         else:
-            (x,y,w,h) = hole
+            (x,y,w,h) = hole[:4]
             me = mesh_for_recboard_with_hole(name,[-length/2,length/2],[-basedim[1],0],[0,basedim[0]],
                 [x,y],[w,basedim[0]-y],internal=False)    
         ba = bpy.data.objects.new(me.name,me)
@@ -832,7 +832,15 @@ def tile_fill(name,dx,dy,Lx,Ly,offset=1):
     Ny = int(Ly//(dy*offset))
     fx = Lx%(dx*offset)
     fy = Ly%(dy*offset)
-    print(fx)
+    if Nx==0:
+        fx=0
+        Nx=1
+        dx=Lx
+    if Ny==0:
+        fy=0
+        Ny=1
+        dy=Ly    
+    print([Nx,Ny,fx,fy])
     tile = rectangle(name,dx, dy)
     tilex = rectangle(name+'x',fx*dx, dy)
     tiley = rectangle(name+'y',dx, fy*dy)

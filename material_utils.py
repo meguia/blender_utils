@@ -219,6 +219,7 @@ def texture_full_material(matName,imagedict,extension='REPEAT', projection='FLAT
     m = Material(matName)
     ycor = 300
     xcor = -300
+    Bump = None
     #m.make_material(matName)
     materialOutput = m.nodes['Material Output']
     PBSDF = m.nodes['Principled BSDF']
@@ -228,6 +229,8 @@ def texture_full_material(matName,imagedict,extension='REPEAT', projection='FLAT
     if mapping is not None:
         Map = add_mapping(m,mapping)
         m.link(Map,'Vector',Tex_color,'Vector')
+    else:
+        Map = None    
     if 'metallic' in imagedict.keys():
         ycor = ycor -100
         loc = Vector((xcor,ycor))
