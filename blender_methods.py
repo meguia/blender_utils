@@ -1,5 +1,5 @@
 import bpy
-from mathutils import Vector, Euler, Color
+from mathutils import Vector, Euler, Color, Matrix
 from math import pi, sin, cos, copysign, ceil, sqrt, radians
 
 scn = bpy.context.scene
@@ -384,31 +384,76 @@ def mesh_for_planeve(name,ve,orient=1):
         mesh.from_pydata(ve, [], fa)
     return mesh
 
-def mesh_for_cylinder(n,name,r=1.0, h=1.0, zorigin=0.0):
-    """ Returns mesh for a cylinder with name, n lateral faces,radius r, height h
-    and relative position of the origin zorigin along the vertical axis
+#def mesh_for_cylinder(n,name,r=1.0, h=1.0, zorigin=0.0):
+#    """ Returns mesh for a cylinder with name, n lateral faces,radius r, height h
+#    and relative position of the origin zorigin along the vertical axis
+#    """
+#    mesh = bpy.data.meshes.get(name)
+#    if mesh is None:
+#        mesh = bpy.data.meshes.new(name)
+#        ve = []
+#        fa = []
+#        for i in range(n):
+#            theta = 2*pi*i/n
+#            v0 = [ r*cos(theta), r*sin(theta), h*(1-zorigin)]
+#            v1 = [ r*cos(theta), r*sin(theta), -h*zorigin]
+#            ve.append(v0)
+#            ve.append(v1)
+#            i0 = i*2
+#            if i+1>=n:
+#                i2 = 0
+#            else:
+#                i2 = i0+2
+#            fa.append([i0, i0+1, i2+1, i2])
+#        fa.append( [ i*2 for i in range(n)])
+#        fa.append( [ (n-i)*2-1 for i in range(n)])
+#        mesh.from_pydata(ve, [], fa)
+#    return mesh
+
+def mesh_for_cylinder(nfaces,name,r=1.0, hlist=[0.0,1.0]):
+    """ Returns mesh for a cylinder with name, n lateral faces,radius r, 
+    and vertices at heights hlist. For example a simple cylinder of height h
+    mesh_for_cylinder(n,name,r, hlist=[0,h])
     """
     mesh = bpy.data.meshes.get(name)
     if mesh is None:
         mesh = bpy.data.meshes.new(name)
         ve = []
-        fa = []
-        for i in range(n):
-            theta = 2*pi*i/n
-            v0 = [ r*cos(theta), r*sin(theta), h*(1-zorigin)]
-            v1 = [ r*cos(theta), r*sin(theta), -h*zorigin]
-            ve.append(v0)
-            ve.append(v1)
-            i0 = i*2
-            if i+1>=n:
-                i2 = 0
-            else:
-                i2 = i0+2
-            fa.append([i0, i0+1, i2+1, i2])
-        fa.append( [ i*2 for i in range(n)])
-        fa.append( [ (n-i)*2-1 for i in range(n)])
+        # Define vertices
+        for nz,h in enumerate(hlist):
+            for na in range(nfaces):
+                theta = 2*pi*i/na
+                v0 = [r*cos(theta), r*sin(theta), h]
+        # Define faces
+        fa = []  
+        # lateral faces
+        #nh=0 na = 0  0, 1, nfaces+1, nfaces
+        #nh=0 na = 1  1, 2, nfaces+2, nfaces+1
+        #la ultima mal seria
+        #nh=0 na=nfaces-1  nfaces-1, nfaces, 2*nfaces, 2*nfaces-1        
+        # deberia ser 
+        #                nfaces-1, 0, nfaces, 2*nfacess-1        
+        
+        #nh=1 na = 0   nfaces, nfaces+1, 2*nfaces+1, 2*nfaces
+        #nh=1 na = 1   nfaces+1, nfaces+2, 2nfaces+2, 2*nfaces+1
+#        caras desde 0 hasta nfaces-1
+#        loop sobre na
+#        nh*nfaces+na, nh*nfaces+na+1, nh*nfaces+nfaces+na+1, nh*nfaces+nfaces+na
+#        
+#        ultima cara na=nfaces-1
+#        nh*nfaces+nfaces-1, nh*nfaces, nh*nfaces+nfaces, nh*nfaces+nfaces+nfaces-1
+        nheights = len(hlist)
+        for nh in range(nheights-1):
+            for na in range(nfaces-1):
+                fa.append([nh*nfaces+na, nh*nfaces+na+1, nh*nfaces+nfaces+na+1, nh*nfaces+nfaces+na])
+            fa.append([nh*nfaces+nfaces-1, nh*nfaces, nh*nfaces+nfaces, nh*nfaces+nfaces+nfaces-1])  
+        # bottom
+        fa.append([nfaces-1-na for na in range(nfaces)])
+        # top  
+        fa.append([(nheights-1)*nfaces+na for na in range(nfaces)])
         mesh.from_pydata(ve, [], fa)
-    return mesh
+    return mesh        
+
 
 def mesh_for_cube(name,zorigin=0):
     """ Returns mesh for a cube of side 1 (not 2!) with name, and 
@@ -610,6 +655,22 @@ def mesh_for_frame(name,dims_hole,dims_frame):
         mesh.from_pydata(ve, [], fa)
         mesh.update(calc_edges=True)
     return mesh
+
+def mesh_for_grid(name,Nx,Ny,dx,dy):
+    """ Return mesh for a grid of Nx x Ny faces each with dimensions dx x dy
+    or, Nx+1 by Ny+1 vertices located at range(Nx)*dx and range(Ny)*dy
+    """
+    Sx = Nx+1
+    Sy = Ny+1
+    mesh = bpy.data.meshes.get(name)
+    if mesh is None:
+        mesh = bpy.data.meshes.new(name)
+        ve =  [Vector((nx*dx,ny*dy,0)) for ny in range(Sy) for nx in range(Sx)]
+        fa = [[Sx*ny+nx,Sx*ny+nx+1,Sx*(ny+1)+nx+1,Sx*(ny+1)+nx] for ny in range(Ny) for nx in range(Nx)]
+        mesh.from_pydata(ve, [], fa)
+        mesh.update(calc_edges=True)
+    return mesh        
+                
         
 def set_smooth(data):
     """ sets shading smooth for all faces
@@ -782,9 +843,36 @@ def icosphere(name, mats=None, pos=[0,0,0],r = 1,sub = 2, smooth = True):
         ob.data.materials.append(mats)
     print(ob.name)
     return ob
-###################################################################################
-# MODIFIER METHODS
 
+
+def grid(name, pos=[0,0,0], Nx=2, Ny =2, dx=1.0, dy=1.0):
+    """ return a grid object with number of subdivisions Nx Ny and spacings dx dy 
+    located at pos
+    """
+    me = mesh_for_grid(name,Nx,Ny,dx,dy)
+    ob = bpy.data.objects.new(me.name,me)
+    ob.location = pos
+    return ob
+
+###################################################################################
+# SIPLE OPERATORS AND MODIFIER METHODS
+
+def duplicate_ob(ob, name):
+    """ duplicates object ob and returns new object with object name 'name'
+    and mesh name idem
+    """
+    ob2 = ob.copy()
+    ob2.data = ob.data.copy()
+    ob2.name = name
+    ob2.data.name = name
+    return ob2
+
+def apply_transforms(ob):
+    ''' apply all transformation to object ob using matrix world
+    '''
+    ob.data.transform(ob.matrix_world)
+    ob.matrix_world = Matrix()
+    return
 
 def hole(ob,hpos,hsize):
     """ makes a hole of size hsize at position hpos in object ob 
@@ -804,11 +892,11 @@ def hole(ob,hpos,hsize):
     bpy.data.objects.remove(ob1)
     return
 
-def arraymod(ob,count=2,off_relative=None,off_constant=None,obj2=None):
+def arraymod(ob,name='A1',count=2,off_relative=None,off_constant=None,obj2=None):
     """ returns an array modifier for object specifying count,
     relative or constant offset and eventually using an object object obj2
     """
-    a1 = ob.modifiers.new('A1','ARRAY')
+    a1 = ob.modifiers.new(name,'ARRAY')
     a1.count = count
     if off_constant is not None:
         a1.use_relative_offset = False
@@ -862,8 +950,27 @@ def tile_fill(name,dx,dy,Lx,Ly,offset=1):
     a3.end_cap = tilex
     return tile
 
-
-
+def embed_array(ob1,Nx,Ny,dx,dy,ob2,gap=0.0):
+    """ makes an array of holes in ob1 using an array of ob2
+    using a boolean with a temp object duplicated from ob2 and scaled
+    by 1+gap, modified by the same array, applying the mod
+    and deleting the temp object afterwards.
+    The array is nx by ny with spacing dx dy and the initial 
+    The initial position for ob2 must be assigned in advance
+    """
+    apply_transforms(ob2)
+    hole = duplicate_ob(ob2,'hole')
+    hole.scale = [1+gap,1+gap,1+gap]
+    apply_transforms(hole)
+    a1 = arraymod(hole,'A1',count=Ny,off_constant=[0,dy,0])
+    a2 = arraymod(hole,'A2',count=Nx,off_constant=[dx,0,0])
+    h1 = ob1.modifiers.new('H1','BOOLEAN')
+    h1.object = hole
+    h1.operation = 'DIFFERENCE'
+    a3 = arraymod(ob2,'A3',count=Ny,off_constant=[0,dy,0])
+    a4 = arraymod(ob2,'A4',count=Nx,off_constant=[dx,0,0])
+    return
+    
 
 def deformmod(ob,name='D1',method='TWIST',axis='X',angle=10,limits=[0,1]):
     """ returns a simple deform modifier with method (twist,bend,taper,stretch)
@@ -962,6 +1069,16 @@ def new_sun(name='sun',pos=(0,0,0),rot=None,tar=None,power=1.0,color=Color((1,1,
     ob_sun = bpy.data.objects.new(sun.name,sun)
     set_posrotar(ob_sun,pos,rot,tar)
     return ob_sun
+
+def point_array(ob,Nx,Ny,dx,dy):
+    """
+    creates an 'array' of instances from ob that can be a point light 
+    (or any other objects that does not admit an array modifier) 
+    with parameters nx ny (only for fixed z)
+    and spacing dx dy, returns the list of objects
+    """
+    grid1 = grid('auxgrid',ob.location,Nx,Ny,dx,dy)
+    
     
 # ================================================================================
 # CAMERA METHODS
