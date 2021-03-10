@@ -421,8 +421,6 @@ def mesh_for_cylinder(nfaces,name,r=1.0, hlist=[0.0,1.0]):
         ve = []
         # Define vertices
         for nz,h in enumerate(hlist):
-            print(h)
-            print(nz)
             for na in range(nfaces):
                 theta = 2*pi*na/nfaces
                 ve.append( [r*cos(theta), r*sin(theta), h])
