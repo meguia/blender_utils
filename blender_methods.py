@@ -415,7 +415,6 @@ def mesh_for_cylinder(nfaces,name,r=1.0, hlist=[0.0,1.0]):
     and vertices at heights hlist. For example a simple cylinder of height h
     mesh_for_cylinder(n,name,r, hlist=[0,h])
     """
-    print(name)
     mesh = bpy.data.meshes.get(name)
     if mesh is None:
         mesh = bpy.data.meshes.new(name)
@@ -427,8 +426,6 @@ def mesh_for_cylinder(nfaces,name,r=1.0, hlist=[0.0,1.0]):
             for na in range(nfaces):
                 theta = 2*pi*na/nfaces
                 ve.append( [r*cos(theta), r*sin(theta), h])
-            
-        print(ve)
         # Define faces
         fa = []  
         # lateral faces
