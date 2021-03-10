@@ -415,15 +415,20 @@ def mesh_for_cylinder(nfaces,name,r=1.0, hlist=[0.0,1.0]):
     and vertices at heights hlist. For example a simple cylinder of height h
     mesh_for_cylinder(n,name,r, hlist=[0,h])
     """
+    print(name)
     mesh = bpy.data.meshes.get(name)
     if mesh is None:
         mesh = bpy.data.meshes.new(name)
         ve = []
         # Define vertices
         for nz,h in enumerate(hlist):
+            print(h)
+            print(nz)
             for na in range(nfaces):
-                theta = 2*pi*i/na
-                v0 = [r*cos(theta), r*sin(theta), h]
+                theta = 2*pi*na/nfaces
+                ve.append( [r*cos(theta), r*sin(theta), h])
+            
+        print(ve)
         # Define faces
         fa = []  
         # lateral faces
@@ -733,11 +738,13 @@ def cube(name, mats = None, pos = [0,0,0]):
         ob.data.materials.append(mats)
     return ob
 
-def cylinder(name, n=16, mats = None, r=1.0, h=1.0, zoffset = 0, pos = [0,0,0], rot = [0,0,0]): 
+# def cylinder(name, n=16, mats = None, r=1.0, h=1.0, zoffset = 0, pos = [0,0,0], rot = [0,0,0]): 
+def cylinder(name, n=16, mats = None, r=1.0, h=1.0, hlist=[0.0,1.0], pos = [0,0,0], rot = [0,0,0]): 
     """ returns a cylinder object at location pos with materials mats
     and origin offset zoffset, n is the number of faces
     """
-    me = mesh_for_cylinder(n,name,r=r, h=h, zorigin=zoffset)
+    # me = mesh_for_cylinder(n,name,r=r, h=h, zorigin=zoffset)
+    me = mesh_for_cylinder(n,name,r=1.0, hlist=hlist)
     ob = bpy.data.objects.new(me.name,me)
     ob.location = pos
     ob.rotation_euler = rot
