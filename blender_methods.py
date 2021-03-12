@@ -410,38 +410,37 @@ def mesh_for_planeve(name,ve,orient=1):
 #        mesh.from_pydata(ve, [], fa)
 #    return mesh
 
-def mesh_for_cylinder(nfaces,name,r=1.0, hlist=[0.0,1.0]):
+def mesh_for_cylinder(nfaces,name,r=1.0, hlist=[0.0,1.0], **kwargs):
     """ Returns mesh for a cylinder with name, n lateral faces,radius r, 
     and vertices at heights hlist. For example a simple cylinder of height h
     mesh_for_cylinder(n,name,r, hlist=[0,h])
+    if rlist is passed in kwargs cylinders segments will have different radius 
+    ie : mesh_for_cylinder(n,name,r, hlist=[0,h], rlist=[1,2])
     """
     mesh = bpy.data.meshes.get(name)
     if mesh is None:
         mesh = bpy.data.meshes.new(name)
         ve = []
-        # Define vertices
-        for nz,h in enumerate(hlist):
-            for na in range(nfaces):
-                theta = 2*pi*na/nfaces
-                ve.append( [r*cos(theta), r*sin(theta), h])
+        # Define vertices with fixed radius value
+        if 'rlist' not in kwargs:
+            for nz,h in enumerate(hlist):
+                for na in range(nfaces):
+                    theta = 2*pi*na/nfaces
+                    ve.append( [r*cos(theta), r*sin(theta), h])
+        else:
+            # Perform additional check
+            if len(kwargs['rlist']) != len(hlist):
+                print('Error: rlist should have same length as hlist')
+                return
+            else:
+                rlist = kwargs['rlist']
+                for nz,h in enumerate(hlist):
+                    for na in range(nfaces):
+                        theta = 2*pi*na/nfaces
+                        print(rlist[nz])
+                        ve.append( [rlist[nz]*cos(theta), rlist[nz]*sin(theta), h])
         # Define faces
         fa = []  
-        # lateral faces
-        #nh=0 na = 0  0, 1, nfaces+1, nfaces
-        #nh=0 na = 1  1, 2, nfaces+2, nfaces+1
-        #la ultima mal seria
-        #nh=0 na=nfaces-1  nfaces-1, nfaces, 2*nfaces, 2*nfaces-1        
-        # deberia ser 
-        #                nfaces-1, 0, nfaces, 2*nfacess-1        
-        
-        #nh=1 na = 0   nfaces, nfaces+1, 2*nfaces+1, 2*nfaces
-        #nh=1 na = 1   nfaces+1, nfaces+2, 2nfaces+2, 2*nfaces+1
-#        caras desde 0 hasta nfaces-1
-#        loop sobre na
-#        nh*nfaces+na, nh*nfaces+na+1, nh*nfaces+nfaces+na+1, nh*nfaces+nfaces+na
-#        
-#        ultima cara na=nfaces-1
-#        nh*nfaces+nfaces-1, nh*nfaces, nh*nfaces+nfaces, nh*nfaces+nfaces+nfaces-1
         nheights = len(hlist)
         for nh in range(nheights-1):
             for na in range(nfaces-1):
@@ -733,13 +732,16 @@ def cube(name, mats = None, pos = [0,0,0]):
         ob.data.materials.append(mats)
     return ob
 
-# def cylinder(name, n=16, mats = None, r=1.0, h=1.0, zoffset = 0, pos = [0,0,0], rot = [0,0,0]): 
-def cylinder(name, n=16, mats = None, r=1.0, h=1.0, hlist=[0.0,1.0], pos = [0,0,0], rot = [0,0,0]): 
+def cylinder(name, n=16, mats = None, r=1.0, h=1.0, hlist=[0.0,1.0], pos = [0,0,0], rot = [0,0,0], **kwargs): 
     """ returns a cylinder object at location pos with materials mats
     and origin offset zoffset, n is the number of faces
+    if optional rlist argument given, cylinder mesh will have different radius
+    value
     """
-    # me = mesh_for_cylinder(n,name,r=r, h=h, zorigin=zoffset)
-    me = mesh_for_cylinder(n,name,r=1.0, hlist=hlist)
+    if 'rlist' not in kwargs:
+        me = mesh_for_cylinder(n,name,r=1.0, hlist=hlist)
+    else:
+        me = mesh_for_cylinder(n,name, hlist=hlist, rlist=kwargs['rlist'])
     ob = bpy.data.objects.new(me.name,me)
     ob.location = pos
     ob.rotation_euler = rot
