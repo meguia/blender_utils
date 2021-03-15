@@ -395,30 +395,32 @@ def mesh_for_cylinder(nfaces,name,r=1.0, h=1.0, zoffset=0):
         ve = [Vector((r*cos(t), r*sin(t), -zoffset)) for t in theta]
         ve.extend([v + Vector((0,0,h)) for v in ve])
         fa = []  
-        nheights = len(hlist)
-        for nh in range(nheights-1):
+        for nh in range(2):
             for na in range(nfaces-1):
                 fa.append([nh*nfaces+na, nh*nfaces+na+1, nh*nfaces+nfaces+na+1, nh*nfaces+nfaces+na])
             fa.append([nh*nfaces+nfaces-1, nh*nfaces, nh*nfaces+nfaces, nh*nfaces+nfaces+nfaces-1])  
         fa.append([nfaces-1-na for na in range(nfaces)])
         fa.append([(nheights-1)*nfaces+na for na in range(nfaces)])
         mesh.from_pydata(ve, [], fa)
-    return mesh        
+    return mesh     
 
-def mesh_for_tube(nfaces,name,r=1.0, h=1.0, top, bot):
+
+def mesh_for_tube(name, nfaces, rlist=1.0, hlist=1.0, top=True, bot=True):
     """ Returns mesh for a tube mesh with name, n lateral faces, heights h 
     and vertices at heights hlist. For example a simple cylinder of height h
     mesh_for_cylinder(n,name,r, hlist=[0,h])
     """
+    print(rlist)
+    print(hlist)
     mesh = bpy.data.meshes.get(name)
     if mesh is None:
         mesh = bpy.data.meshes.new(name)
         ve = []
         # Define vertices
-        for nz,h in enumerate(hlist):
+        for nh,h in enumerate(hlist):
             for na in range(nfaces):
                 theta = 2*pi*na/nfaces
-                ve.append( [r*cos(theta), r*sin(theta), h])
+                ve.append( [rlist[nh]*cos(theta), rlist[nh]*sin(theta), h])
         # Define faces
         fa = []  
         nheights = len(hlist)
@@ -426,10 +428,53 @@ def mesh_for_tube(nfaces,name,r=1.0, h=1.0, top, bot):
             for na in range(nfaces-1):
                 fa.append([nh*nfaces+na, nh*nfaces+na+1, nh*nfaces+nfaces+na+1, nh*nfaces+nfaces+na])
             fa.append([nh*nfaces+nfaces-1, nh*nfaces, nh*nfaces+nfaces, nh*nfaces+nfaces+nfaces-1])  
-        fa.append([nfaces-1-na for na in range(nfaces)])
-        fa.append([(nheights-1)*nfaces+na for na in range(nfaces)])
+        if bot:
+            fa.append([nfaces-1-na for na in range(nfaces)])
+        if top:    
+            fa.append([(nheights-1)*nfaces+na for na in range(nfaces)])
         mesh.from_pydata(ve, [], fa)
     return mesh        
+
+#def mesh_for_tube(nfaces,name,r=1.0, h=1.0, **kwargs):
+#    """ Returns mesh for a tube mesh with name, n lateral faces, heights h 
+#    and vertices at heights hlist. For example a simple cylinder of height h
+#    mesh_for_cylinder(n,name,r, hlist=[0,h])
+#    if rlist is passed in kwargs cylinders segments will have different radius 
+#    ie : mesh_for_cylinder(n,name,r, hlist=[0,h], rlist=[1,2])
+#    """
+#    mesh = bpy.data.meshes.get(name)
+#    if mesh is None:
+#        mesh = bpy.data.meshes.new(name)
+#        ve = []
+#        # Define vertices with fixed radius value
+#        if 'rlist' not in kwargs:
+#            for nz,h in enumerate(hlist):
+#                for na in range(nfaces):
+#                    theta = 2*pi*na/nfaces
+#                    ve.append( [r*cos(theta), r*sin(theta), h])
+#        else:
+#            # Perform additional check
+#            if len(kwargs['rlist']) != len(hlist):
+#                print('Error: rlist should have same length as hlist')
+#                return
+#            else:
+#                rlist = kwargs['rlist']
+#                for nz,h in enumerate(hlist):
+#                    for na in range(nfaces):
+#                        theta = 2*pi*na/nfaces
+#                        print(rlist[nz])
+#                        ve.append( [rlist[nz]*cos(theta), rlist[nz]*sin(theta), h])
+#        # Define faces
+#        fa = []  
+#        nheights = len(hlist)
+#        for nh in range(nheights-1):
+#            for na in range(nfaces-1):
+#                fa.append([nh*nfaces+na, nh*nfaces+na+1, nh*nfaces+nfaces+na+1, nh*nfaces+nfaces+na])
+#            fa.append([nh*nfaces+nfaces-1, nh*nfaces, nh*nfaces+nfaces, nh*nfaces+nfaces+nfaces-1])  
+#        fa.append([nfaces-1-na for na in range(nfaces)])
+#        fa.append([(nheights-1)*nfaces+na for na in range(nfaces)])
+#        mesh.from_pydata(ve, [], fa)
+#    return mesh        
 
 
 def mesh_for_cube(name,zorigin=0):
@@ -601,35 +646,35 @@ def mesh_for_icosphere(name, s = 1, subdiv = 1):
         mesh.from_pydata(ve, [], fa)
     return mesh    
         
-def mesh_for_tube(n,m,name,r=1.0, h=1.0, zorigin=0.0):
-    """ Returns mesh for tube segmented in m slices with  
-    radii given by r and z coordinates given by h
-    """
-    mesh = bpy.data.meshes.get(name)
-    if not hasattr(r, "__len__"):
-        r = [r for _ in range(m)]
-    if not hasattr(h, "__len__"):
-        h = [j*h/m for j in range(m)]    
-    if mesh is None:
-        mesh = bpy.data.meshes.new(name)
-        ve = []
-        fa = []
-        fa.append([n-i for i in range(1,n+1)])
-        for j in range(m):
-            for i in range(n):
-                theta = 2*pi*i/n
-                v0 = [ r[j]*cos(theta), r[j]*sin(theta), -h[-1]*zorigin + h[j]]
-                ve.append(v0)
-                if (j+1 < m): 
-                    i0 = j*n+i
-                    if i+1>=n:
-                        i2 = j*n
-                    else:
-                        i2 = i0+1
-                    fa.append([i0, i2, i2+n, i0+n])
-        fa.append( [(m-1)*n+i for i in range(n)])
-        mesh.from_pydata(ve, [], fa)
-    return mesh
+#def mesh_for_tube(n,m,name,r=1.0, h=1.0, zorigin=0.0):
+#    """ Returns mesh for tube segmented in m slices with  
+#    radii given by r and z coordinates given by h
+#    """
+#    mesh = bpy.data.meshes.get(name)
+#    if not hasattr(r, "__len__"):
+#        r = [r for _ in range(m)]
+#    if not hasattr(h, "__len__"):
+#        h = [j*h/m for j in range(m)]    
+#    if mesh is None:
+#        mesh = bpy.data.meshes.new(name)
+#        ve = []
+#        fa = []
+#        fa.append([n-i for i in range(1,n+1)])
+#        for j in range(m):
+#            for i in range(n):
+#                theta = 2*pi*i/n
+#                v0 = [ r[j]*cos(theta), r[j]*sin(theta), -h[-1]*zorigin + h[j]]
+#                ve.append(v0)
+#                if (j+1 < m): 
+#                    i0 = j*n+i
+#                    if i+1>=n:
+#                        i2 = j*n
+#                    else:
+#                        i2 = i0+1
+#                    fa.append([i0, i2, i2+n, i0+n])
+#        fa.append( [(m-1)*n+i for i in range(n)])
+#        mesh.from_pydata(ve, [], fa)
+#    return mesh
 
 def mesh_for_frame(name,dims_hole,dims_frame):
     """ Return mesh for a frame enclosing a rectangular hole of dimension dims_hole
@@ -754,15 +799,20 @@ def cylinder(name, n=16, mats = None, r=1.0, h=1.0, pos=[0,0,0], rot=[0,0,0], zo
         ob.data.materials.append(mats)
     return ob
 
-def tube(name, n=16, mats = None, r=1.0, h=1.0, h=1.0, pos=[0,0,0], rot=[0,0,0], top=True, bot=True): 
-    """ returns a tube object with n lateral faces and vertical subdivisions 
-    h and r can be a single value (cylinder) or a list of heights and radii for subdivisions
-    top (bot) is the top (bottom) face and is added if True
+def tube(name, n=16, mats = None, r=1.0, l=1.0, pos=[0,0,0], rot=[0,0,0], top=True, bot=True): 
+    """ returns a tube object with n lateral faces and vertical subdivisions of length(s) l
+    and radius(ii) r.  l and r can be a single value (cylinder) or a list of lengths and radii 
+    for subdivisions. top (bot) is the top (bottom) face and is added if True
     """
-    if type(h) is not list:
-        h = [0, h]
+    if type(l) is not list:
+        h = [0, l]
+    else:
+        h = [sum(l[:i]) for i in range(len(l)+1)]    
     if type(r) is not list:
-        r = [r]*len(h)
+        r = [r]*len(h) 
+    else:
+        if (len(r)<len(h)):
+            r.extend([r[-1]]*(len(h)-len(r)))                
     me = mesh_for_tube(name,n,r,h,top,bot)
     ob = bpy.data.objects.new(me.name,me)
     ob.location = pos
@@ -770,7 +820,6 @@ def tube(name, n=16, mats = None, r=1.0, h=1.0, h=1.0, pos=[0,0,0], rot=[0,0,0],
     if mats is not None:
         ob.data.materials.append(mats)
     return ob
-
 
 
 def floor(name, mats = None, pos=[0,0,0],dims=[1,1,0.1],flip=0):
