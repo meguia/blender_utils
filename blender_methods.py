@@ -384,34 +384,29 @@ def mesh_for_planeve(name,ve,orient=1):
         mesh.from_pydata(ve, [], fa)
     return mesh
 
-#def mesh_for_cylinder(n,name,r=1.0, h=1.0, zorigin=0.0):
-#    """ Returns mesh for a cylinder with name, n lateral faces,radius r, height h
-#    and relative position of the origin zorigin along the vertical axis
-#    """
-#    mesh = bpy.data.meshes.get(name)
-#    if mesh is None:
-#        mesh = bpy.data.meshes.new(name)
-#        ve = []
-#        fa = []
-#        for i in range(n):
-#            theta = 2*pi*i/n
-#            v0 = [ r*cos(theta), r*sin(theta), h*(1-zorigin)]
-#            v1 = [ r*cos(theta), r*sin(theta), -h*zorigin]
-#            ve.append(v0)
-#            ve.append(v1)
-#            i0 = i*2
-#            if i+1>=n:
-#                i2 = 0
-#            else:
-#                i2 = i0+2
-#            fa.append([i0, i0+1, i2+1, i2])
-#        fa.append( [ i*2 for i in range(n)])
-#        fa.append( [ (n-i)*2-1 for i in range(n)])
-#        mesh.from_pydata(ve, [], fa)
-#    return mesh
-
-def mesh_for_cylinder(nfaces,name,r=1.0, hlist=[0.0,1.0]):
+def mesh_for_cylinder(nfaces,name,r=1.0, h=1.0, zoffset=0):
     """ Returns mesh for a cylinder with name, n lateral faces,radius r, 
+    hight h and origin offset zoffset
+    """
+    mesh = bpy.data.meshes.get(name)
+    if mesh is None:
+        mesh = bpy.data.meshes.new(name)
+        theta = [2*pi*n/nfaces for n in range(nfaces)]
+        ve = [Vector((r*cos(t), r*sin(t), -zoffset)) for t in theta]
+        ve.extend([v + Vector((0,0,h)) for v in ve])
+        fa = []  
+        nheights = len(hlist)
+        for nh in range(nheights-1):
+            for na in range(nfaces-1):
+                fa.append([nh*nfaces+na, nh*nfaces+na+1, nh*nfaces+nfaces+na+1, nh*nfaces+nfaces+na])
+            fa.append([nh*nfaces+nfaces-1, nh*nfaces, nh*nfaces+nfaces, nh*nfaces+nfaces+nfaces-1])  
+        fa.append([nfaces-1-na for na in range(nfaces)])
+        fa.append([(nheights-1)*nfaces+na for na in range(nfaces)])
+        mesh.from_pydata(ve, [], fa)
+    return mesh        
+
+def mesh_for_tube(nfaces,name,r=1.0, h=1.0, top, bot):
+    """ Returns mesh for a tube mesh with name, n lateral faces, heights h 
     and vertices at heights hlist. For example a simple cylinder of height h
     mesh_for_cylinder(n,name,r, hlist=[0,h])
     """
@@ -426,30 +421,12 @@ def mesh_for_cylinder(nfaces,name,r=1.0, hlist=[0.0,1.0]):
                 ve.append( [r*cos(theta), r*sin(theta), h])
         # Define faces
         fa = []  
-        # lateral faces
-        #nh=0 na = 0  0, 1, nfaces+1, nfaces
-        #nh=0 na = 1  1, 2, nfaces+2, nfaces+1
-        #la ultima mal seria
-        #nh=0 na=nfaces-1  nfaces-1, nfaces, 2*nfaces, 2*nfaces-1        
-        # deberia ser 
-        #                nfaces-1, 0, nfaces, 2*nfacess-1        
-        
-        #nh=1 na = 0   nfaces, nfaces+1, 2*nfaces+1, 2*nfaces
-        #nh=1 na = 1   nfaces+1, nfaces+2, 2nfaces+2, 2*nfaces+1
-#        caras desde 0 hasta nfaces-1
-#        loop sobre na
-#        nh*nfaces+na, nh*nfaces+na+1, nh*nfaces+nfaces+na+1, nh*nfaces+nfaces+na
-#        
-#        ultima cara na=nfaces-1
-#        nh*nfaces+nfaces-1, nh*nfaces, nh*nfaces+nfaces, nh*nfaces+nfaces+nfaces-1
         nheights = len(hlist)
         for nh in range(nheights-1):
             for na in range(nfaces-1):
                 fa.append([nh*nfaces+na, nh*nfaces+na+1, nh*nfaces+nfaces+na+1, nh*nfaces+nfaces+na])
             fa.append([nh*nfaces+nfaces-1, nh*nfaces, nh*nfaces+nfaces, nh*nfaces+nfaces+nfaces-1])  
-        # bottom
         fa.append([nfaces-1-na for na in range(nfaces)])
-        # top  
         fa.append([(nheights-1)*nfaces+na for na in range(nfaces)])
         mesh.from_pydata(ve, [], fa)
     return mesh        
@@ -523,6 +500,26 @@ def mesh_for_recboard_with_hole(name,xs,ys,zs,xy,wh,internal=True):
         mesh = bpy.data.meshes.new(name)
         mesh.from_pydata(ve, [], fa)
     return mesh    
+
+def mesh_for_box(name,xs,ys,zs,top=True,bottom=True):
+    """Returns mesh for a rectangular box with vertices
+    located in xs[0] xs[1], yx[0] ys[1], and zs[0] zs[1]
+    and face on top (bottom) if true
+    """
+    ve = [Vector((xs[0],ys[0],zs[0])),Vector((xs[1],ys[0],zs[0])),
+        Vector((xs[0],ys[1],zs[0])),Vector((xs[1],ys[1],zs[0])),
+        Vector((xs[0],ys[0],zs[1])),Vector((xs[1],ys[0],zs[1])),
+        Vector((xs[0],ys[1],zs[1])),Vector((xs[1],ys[1],zs[1])),]
+    fa = [(1,3,7,5),(2,0,4,6),(0,1,5,4),(3,2,6,7)]
+    if bottom:
+        fa.append((0,2,3,1))
+    if top:
+        fa.append((4,5,7,6))
+    mesh = bpy.data.meshes.get(name)
+    if mesh is None:
+        mesh = bpy.data.meshes.new(name)
+        mesh.from_pydata(ve, [], fa)
+    return mesh         
 
 def mesh_for_lbeam(name,width,thick,length):
     """ Return mesh for square L beam of given width, length and thickness
@@ -733,19 +730,48 @@ def cube(name, mats = None, pos = [0,0,0]):
         ob.data.materials.append(mats)
     return ob
 
-# def cylinder(name, n=16, mats = None, r=1.0, h=1.0, zoffset = 0, pos = [0,0,0], rot = [0,0,0]): 
-def cylinder(name, n=16, mats = None, r=1.0, h=1.0, hlist=[0.0,1.0], pos = [0,0,0], rot = [0,0,0]): 
-    """ returns a cylinder object at location pos with materials mats
-    and origin offset zoffset, n is the number of faces
+def box(name, dims=[1,1,0.1], mats = None, pos = [0,0,0], top=True, bottom=True):
+    """ returns a rectangular box of dimensions dims = [length(x), width(y), and height(z)]
+    with origin at the base center and material mats
     """
-    # me = mesh_for_cylinder(n,name,r=r, h=h, zorigin=zoffset)
-    me = mesh_for_cylinder(n,name,r=1.0, hlist=hlist)
+    (length,width,height)=dims
+    me = mesh_for_box(name,[-length/2,length/2],[-width/2,width/2],[0,height],top,bottom)
+    ob = bpy.data.objects.new(me.name,me)
+    ob.location = pos
+    if mats is not None:
+        ob.data.materials.append(mats)
+    return ob    
+
+def cylinder(name, n=16, mats = None, r=1.0, h=1.0, pos=[0,0,0], rot=[0,0,0], zoffset=0): 
+    """ returns a cylinder object with n lateral faces at location pos with materials mats
+    origin offset zoffset
+    """
+    me = mesh_for_cylinder(name,n,r,h,zoffset)
     ob = bpy.data.objects.new(me.name,me)
     ob.location = pos
     ob.rotation_euler = rot
     if mats is not None:
         ob.data.materials.append(mats)
     return ob
+
+def tube(name, n=16, mats = None, r=1.0, h=1.0, h=1.0, pos=[0,0,0], rot=[0,0,0], top=True, bot=True): 
+    """ returns a tube object with n lateral faces and vertical subdivisions 
+    h and r can be a single value (cylinder) or a list of heights and radii for subdivisions
+    top (bot) is the top (bottom) face and is added if True
+    """
+    if type(h) is not list:
+        h = [0, h]
+    if type(r) is not list:
+        r = [r]*len(h)
+    me = mesh_for_tube(name,n,r,h,top,bot)
+    ob = bpy.data.objects.new(me.name,me)
+    ob.location = pos
+    ob.rotation_euler = rot
+    if mats is not None:
+        ob.data.materials.append(mats)
+    return ob
+
+
 
 def floor(name, mats = None, pos=[0,0,0],dims=[1,1,0.1],flip=0):
     """ convenience function returning a rectangular board  with material mats,
@@ -857,7 +883,7 @@ def grid(name, pos=[0,0,0], Nx=2, Ny =2, dx=1.0, dy=1.0):
     return ob
 
 ###################################################################################
-# SIPLE OPERATORS AND MODIFIER METHODS
+# SIMPLE OPERATORS AND MODIFIER METHODS
 
 def duplicate_ob(ob, name):
     """ duplicates object ob and returns new object with object name 'name'
@@ -1072,14 +1098,36 @@ def new_sun(name='sun',pos=(0,0,0),rot=None,tar=None,power=1.0,color=Color((1,1,
     set_posrotar(ob_sun,pos,rot,tar)
     return ob_sun
 
-def point_array(ob,Nx,Ny,dx,dy):
+def light_grid(ob,Nx,Ny,dx,dy):
     """
     creates an 'array' of instances from ob that can be a point light 
     (or any other objects that does not admit an array modifier) 
     with parameters nx ny (only for fixed z)
-    and spacing dx dy, returns the list of objects
+    and spacing dx dy, returns the grid
     """
     grid1 = grid('auxgrid',ob.location,Nx,Ny,dx,dy)
+    ob.parent = grid1
+    ob.parent_type = 'VERTEX'
+    grid1.instance_type = 'VERTS'
+    return grid1
+   
+
+def light_array(ob,Nx,Ny,dx,dy):
+    """
+    creates an array of copies from ob with the same light data
+    and locations at the grid given by Nx x Ny with spacings dx dy
+    at the same z coordinate
+    Returns a list of lights including the original one
+    """
+    lights_list = [ob]
+    for nx in range(Nx):
+        for ny in range(Ny):
+            if (nx+ny):
+                ob2 = ob.copy()
+                ob2.location = ob.location + Vector((nx*dx,ny*dy,0))
+                ob2.name = ob.name + '_' + str(nx) + '_' + str(ny)
+                lights_list.append(ob2)
+    return(lights_list)         
     
     
 # ================================================================================
