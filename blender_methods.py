@@ -10,38 +10,6 @@ scnw = scn.world
 scne = scn.eevee
 
 # ================================================================================
-# INDICE EN ESPANOL DE LAS TRES PRIMERAS CATEGORIAS, EL RESTO DESCRIPTO EN LAS FUNCIONES
-#
-# GEOMETRIC METHODS
-# vertex(x,y,z,scale=1) devuelve una lista de coordenadas x,y,z normalizadas a radio = scale
-# set_posangle(oblist,pos,angulo) posiciona lista de objetos oblist en coordenadas pos y rotacion angle
-# set_posrotar(ob,pos=None,rot=None,tar=None) idem anterior pero con target
-# shift_origin(ob,shift) corre el origen
-# spiral(cname,p1,p2,targc,nturn) espiral de nturn vueltas entre dos puntos siguiendo a targc 
-# cpath(cname,plist,step) devuelve objeto curva entre lista de puntos con pasos step
-# curve_from_pts(cname,ve,order,w) devuelve curva data nurbs orden order a partir de lista de puntos ve
-# pts_from_curve(cc) la inversa, devuelve lista de puntos a partir de curva data
-# clamp(x, min, max) clampea
-# linspace(x1,x2,n) linspace
-# OPERATOR METHODS
-# list_link(oblist) linkea a la escena la lista de objetos oblist y su 1a generacion de child
-# link_all(CS) linkea objeto y 2 generaciones de childs usada para el CS > prisma > caps
-# list_parent(name,oblist) parenta la lista de objetos oblist a un empty
-# apply_mod(ob,mod) aplica el modificador mod al objeto ob, tiene que linkear seleccionar y luego deslinkear
-# join(oblist) une todos los objetos de oblist al primer elemento usa ops
-# curve_to_beam(ob,thick,width) tranforma la curva ob a un mesh de espesor thick y ancho width usa ops
-# MESH METHODS
-# mesh_for_plane(name,ve,orient) devuelve mesh de plano con vertices ve y orientacion +/- 1
-# mesh_for_cylinder(n,name,origin) devuelve mesh de cilindro de n nodos de altura origin
-# mesh_for_cube(name,origin) devuelve mesh de cubo unidad de altura origin
-# mesh_for_recboard(name,xs,ys,zs) devuelve mesh de placa rectangular entre xs[0] y xs[1], etc
-# mesh_for_board(name,vertices,thick) devuelve mesh de placa con espesor thick de perfil vertices
-# mesh_for_prisma(n,width,thick,alto) devuelve mesh de prisma U cuadrado de dimensiones dadas
-# mesh_for_lbeam(name,width,thick,length) devuelve mesh de L beam en la direccion x de dimensiones dadas
-# mesh_for_tbeam(name,width,thick,length) idem ant con T beam
-# mesh_for_polygon(name,vertlist) devuelve mesh de poligono dado por lista de vertices
-
-# ================================================================================
 # GEOMETRIC METHODS
 
 def multwise(v1,v2):
@@ -435,47 +403,6 @@ def mesh_for_tube(name, nfaces, rlist=1.0, hlist=1.0, top=True, bot=True):
         mesh.from_pydata(ve, [], fa)
     return mesh        
 
-#def mesh_for_tube(nfaces,name,r=1.0, h=1.0, **kwargs):
-#    """ Returns mesh for a tube mesh with name, n lateral faces, heights h 
-#    and vertices at heights hlist. For example a simple cylinder of height h
-#    mesh_for_cylinder(n,name,r, hlist=[0,h])
-#    if rlist is passed in kwargs cylinders segments will have different radius 
-#    ie : mesh_for_cylinder(n,name,r, hlist=[0,h], rlist=[1,2])
-#    """
-#    mesh = bpy.data.meshes.get(name)
-#    if mesh is None:
-#        mesh = bpy.data.meshes.new(name)
-#        ve = []
-#        # Define vertices with fixed radius value
-#        if 'rlist' not in kwargs:
-#            for nz,h in enumerate(hlist):
-#                for na in range(nfaces):
-#                    theta = 2*pi*na/nfaces
-#                    ve.append( [r*cos(theta), r*sin(theta), h])
-#        else:
-#            # Perform additional check
-#            if len(kwargs['rlist']) != len(hlist):
-#                print('Error: rlist should have same length as hlist')
-#                return
-#            else:
-#                rlist = kwargs['rlist']
-#                for nz,h in enumerate(hlist):
-#                    for na in range(nfaces):
-#                        theta = 2*pi*na/nfaces
-#                        print(rlist[nz])
-#                        ve.append( [rlist[nz]*cos(theta), rlist[nz]*sin(theta), h])
-#        # Define faces
-#        fa = []  
-#        nheights = len(hlist)
-#        for nh in range(nheights-1):
-#            for na in range(nfaces-1):
-#                fa.append([nh*nfaces+na, nh*nfaces+na+1, nh*nfaces+nfaces+na+1, nh*nfaces+nfaces+na])
-#            fa.append([nh*nfaces+nfaces-1, nh*nfaces, nh*nfaces+nfaces, nh*nfaces+nfaces+nfaces-1])  
-#        fa.append([nfaces-1-na for na in range(nfaces)])
-#        fa.append([(nheights-1)*nfaces+na for na in range(nfaces)])
-#        mesh.from_pydata(ve, [], fa)
-#    return mesh        
-
 
 def mesh_for_cube(name,zorigin=0):
     """ Returns mesh for a cube of side 1 (not 2!) with name, and 
@@ -646,36 +573,6 @@ def mesh_for_icosphere(name, s = 1, subdiv = 1):
         mesh.from_pydata(ve, [], fa)
     return mesh    
         
-#def mesh_for_tube(n,m,name,r=1.0, h=1.0, zorigin=0.0):
-#    """ Returns mesh for tube segmented in m slices with  
-#    radii given by r and z coordinates given by h
-#    """
-#    mesh = bpy.data.meshes.get(name)
-#    if not hasattr(r, "__len__"):
-#        r = [r for _ in range(m)]
-#    if not hasattr(h, "__len__"):
-#        h = [j*h/m for j in range(m)]    
-#    if mesh is None:
-#        mesh = bpy.data.meshes.new(name)
-#        ve = []
-#        fa = []
-#        fa.append([n-i for i in range(1,n+1)])
-#        for j in range(m):
-#            for i in range(n):
-#                theta = 2*pi*i/n
-#                v0 = [ r[j]*cos(theta), r[j]*sin(theta), -h[-1]*zorigin + h[j]]
-#                ve.append(v0)
-#                if (j+1 < m): 
-#                    i0 = j*n+i
-#                    if i+1>=n:
-#                        i2 = j*n
-#                    else:
-#                        i2 = i0+1
-#                    fa.append([i0, i2, i2+n, i0+n])
-#        fa.append( [(m-1)*n+i for i in range(n)])
-#        mesh.from_pydata(ve, [], fa)
-#    return mesh
-
 def mesh_for_frame(name,dims_hole,dims_frame):
     """ Return mesh for a frame enclosing a rectangular hole of dimension dims_hole
     dims_frame give the width and thickness of the frame
@@ -800,9 +697,11 @@ def cylinder(name, n=16, mats = None, r=1.0, h=1.0, pos=[0,0,0], rot=[0,0,0], zo
     return ob
 
 def tube(name, n=16, mats = None, r=1.0, l=1.0, pos=[0,0,0], rot=[0,0,0], top=True, bot=True): 
-    """ returns a tube object with n lateral faces and vertical subdivisions of length(s) l
+    """ returns a tube object with n lateral faces and vertical len(l) subdivisions of length(s) l
     and radius(ii) r.  l and r can be a single value (cylinder) or a list of lengths and radii 
     for subdivisions. top (bot) is the top (bottom) face and is added if True
+    mats can be a single material or a list of len(l) materials assigned to each subdivision
+    or len(l) + 2 for each subdivision + bottom + top
     """
     if type(l) is not list:
         h = [0, l]
@@ -818,7 +717,11 @@ def tube(name, n=16, mats = None, r=1.0, l=1.0, pos=[0,0,0], rot=[0,0,0], top=Tr
     ob.location = pos
     ob.rotation_euler = rot
     if mats is not None:
-        ob.data.materials.append(mats)
+        if (test_dim(mats)==1):
+            for m in mats:
+                ob.data.materials.append(m)
+        else:    
+            ob.data.materials.append(mats)
     return ob
 
 
@@ -930,6 +833,26 @@ def grid(name, pos=[0,0,0], Nx=2, Ny =2, dx=1.0, dy=1.0):
     ob = bpy.data.objects.new(me.name,me)
     ob.location = pos
     return ob
+
+#################################################################################
+# PAINT AND MATERIALS ASSIGNMENTS
+
+def paint_regions(ob,coord,paint_list):
+    """ Paint object ob in N regions along coordinate coord (0 for x, 1 for y, 2 for z)
+    with materials in ob.data.materials, using the recipe stored in paint list.
+    paint list is a Nx3 array each row contain the min/max values of coord 
+    (interval) and the material_index
+    material_index must be integer between 0 and M-1, where M is len(list(ob.data.materials))
+    """
+    nmat = len(list(ob.data.materials)) 
+    for f in ob.data.polygons:
+        for p in paint_list:
+            if (f.center[coord]>p[0] and f.center[coord]<p[1]):
+                if (p[2]<nmat):
+                    f.material_index = p[2]
+                else:
+                    break
+                    # send error    
 
 ###################################################################################
 # SIMPLE OPERATORS AND MODIFIER METHODS
