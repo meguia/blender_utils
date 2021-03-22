@@ -696,7 +696,7 @@ def cylinder(name, n=16, mats = None, r=1.0, h=1.0, pos=[0,0,0], rot=[0,0,0], zo
         ob.data.materials.append(mats)
     return ob
 
-def tube(name, n=16, mats = None, r=1.0, l=1.0, pos=[0,0,0], rot=[0,0,0], top=True, bot=True): 
+def tube(name, n=16, mats = None, r=1.0, l=1.0, pos=[0,0,0], rot=[0,0,0], zoffset= 0, top=True, bot=True): 
     """ returns a tube object with n lateral faces and vertical len(l) subdivisions of length(s) l
     and radius(ii) r.  l and r can be a single value (cylinder) or a list of lengths and radii 
     for subdivisions. top (bot) is the top (bottom) face and is added if True
@@ -704,9 +704,9 @@ def tube(name, n=16, mats = None, r=1.0, l=1.0, pos=[0,0,0], rot=[0,0,0], top=Tr
     or len(l) + 2 for each subdivision + bottom + top
     """
     if type(l) is not list:
-        h = [0, l]
+        h = [-zoffset, l-zoffset]
     else:
-        h = [sum(l[:i]) for i in range(len(l)+1)]    
+        h = [sum(l[:i])-zoffset for i in range(len(l)+1)]    
     if type(r) is not list:
         r = [r]*len(h) 
     else:
@@ -958,10 +958,10 @@ def embed_array(ob1,Nx,Ny,dx,dy,ob2,gap=0.0):
     The array is nx by ny with spacing dx dy and the initial 
     The initial position for ob2 must be assigned in advance
     """
-    apply_transforms(ob2)
+    #apply_transforms(ob2)
     hole = duplicate_ob(ob2,'hole')
     hole.scale = [1+gap,1+gap,1+gap]
-    apply_transforms(hole)
+    #apply_transforms(hole)
     a1 = arraymod(hole,'A1',count=Ny,off_constant=[0,dy,0])
     a2 = arraymod(hole,'A2',count=Nx,off_constant=[dx,0,0])
     h1 = ob1.modifiers.new('H1','BOOLEAN')
