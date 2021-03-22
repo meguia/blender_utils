@@ -306,23 +306,25 @@ def texture_full_material(matName,imagedict,extension='REPEAT', projection='FLAT
     m.link(PBSDF,'BSDF',materialOutput,'Surface')        
     return m.mat    
 
-def emission_material(matName,image,pow=1.0,ob_coord=None):
+def emission_material(matName,strength=1.0,baseColor=[1,1,1,1],image=None,ob_coord=None):
     m = Material(matName)
     #m.make_material(matName)
     materialOutput = m.nodes['Material Output']
     PBSDF = m.nodes['Principled BSDF']
     m.nodes.remove(PBSDF)
     emission = m.makeNode('ShaderNodeEmission','Emission')
-    emission_image = m.makeNode('ShaderNodeTexImage',matName.lower())
+    emission.inputs['Strength'].default_value = strength
+    emission.inputs['Color'].default_value = baseColor
+    m.link(emission,'Emission',materialOutput,'Surface')
+    if image is not None:
+        emission_image = m.makeNode('ShaderNodeTexImage',matName.lower())
+        m.link(emission_image,'Color',emission,'Color')
+        emission_image.image = image
+        emission_image.extension = 'EXTEND'
     if ob_coord is not None:
         texture_coordinate = m.makeNode('ShaderNodeTexCoord',ob_coord.name)
         texture_coordinate.object = ob_coord
         m.link(texture_coordinate,'Generated',emission_image,'Vector')
-    m.link(emission,'Emission',materialOutput,'Surface')
-    m.link(emission_image,'Color',emission,'Color')
-    emission_image.image = image
-    emission_image.extension = 'EXTEND'
-    emission.inputs['Strength'].default_value = pow
     return m.mat
 
 
