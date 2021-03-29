@@ -131,6 +131,13 @@ def in_box(pos, boxmin, boxmax):
     else: 
         return False
 
+def get_center(ob):
+    """ returns the center of the object using bounding boxes
+    useful for setting origin to center of object
+    """
+    loc_bb = 0.125 * sum((Vector(b) for b in ob.bound_box), Vector())
+    glob_bb = ob.matrix_world  @ loc_bb
+    return glob_bb
 
 # ================================================================================
 # LINK AND COLLECTION METHODS 
@@ -623,6 +630,13 @@ def set_flat(data):
     for f in data.polygons:
         f.use_smooth = False
 
+def mesh_name_as_object(list_of_objects):
+    """ Uses the names of the objects in list_of_objects to set the names of the mesh data
+    """
+    for ob in list_of_objects:
+        if getattr(ob,'type','') in 'MESH':
+            old_name = ob.data.name
+            ob.data.name = ob.name
 
 # ================================================================================
 # OBJECT METHODS
@@ -834,6 +848,7 @@ def grid(name, pos=[0,0,0], Nx=2, Ny =2, dx=1.0, dy=1.0):
     ob.location = pos
     return ob
 
+
 #################################################################################
 # PAINT AND MATERIALS ASSIGNMENTS
 
@@ -853,6 +868,17 @@ def paint_regions(ob,coord,paint_list):
                 else:
                     break
                     # send error    
+
+def replace_material(list_of_objects,name_match,material):
+    """ Replace material in all objects in list list_of_objects with names matching string
+    name_matr with material mat. Useful for duplicated materials with .001 .002, etc
+    """
+    for ob in list_of_objects:
+        if getattr(ob,'type','') in 'MESH':
+            for n in range(len(ob.data.materials)):
+                if name_match in ob.data.materials[n].name:
+                    ob.data.materials[n] = material
+
 
 ###################################################################################
 # SIMPLE OPERATORS AND MODIFIER METHODS
