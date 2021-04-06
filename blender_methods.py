@@ -12,6 +12,11 @@ scne = scn.eevee
 # ================================================================================
 # GEOMETRIC METHODS
 
+def rotate_list(l, n):
+    """ Performs a list rotation n places
+    """
+    return l[n:] + l[:n]
+
 def multwise(v1,v2):
     """ Performs elementwise multiplication between two vectors
     """
@@ -380,10 +385,11 @@ def mesh_for_cylinder(nfaces,name,r=1.0, h=1.0, zoffset=0):
     return mesh     
 
 
-def mesh_for_tube(name, nfaces, rlist=1.0, hlist=1.0, top=True, bot=True):
+def mesh_for_tube(name, nfaces, rlist=1.0, hlist=1.0, top=True, bot=True, axis=2):
     """ Returns mesh for a tube mesh with name, n lateral faces, heights h 
     and vertices at heights hlist. For example a simple cylinder of height h
     mesh_for_cylinder(n,name,r, hlist=[0,h])
+    the axis of the cylinder point in direction axis (0,1,2) = x,y,z
     """
     print(rlist)
     print(hlist)
@@ -395,7 +401,8 @@ def mesh_for_tube(name, nfaces, rlist=1.0, hlist=1.0, top=True, bot=True):
         for nh,h in enumerate(hlist):
             for na in range(nfaces):
                 theta = 2*pi*na/nfaces
-                ve.append( [rlist[nh]*cos(theta), rlist[nh]*sin(theta), h])
+                vv = [h, rlist[nh]*cos(theta), rlist[nh]*sin(theta)]            
+                ve.append(rotate_list(vv,axis))
         # Define faces
         fa = []  
         nheights = len(hlist)
@@ -710,7 +717,7 @@ def cylinder(name, n=16, mats = None, r=1.0, h=1.0, pos=[0,0,0], rot=[0,0,0], zo
         ob.data.materials.append(mats)
     return ob
 
-def tube(name, n=16, mats = None, r=1.0, l=1.0, pos=[0,0,0], rot=[0,0,0], zoffset= 0, top=True, bot=True): 
+def tube(name, n=16, mats = None, r=1.0, l=1.0, pos=[0,0,0], rot=[0,0,0], zoffset= 0, top=True, bot=True, axis=2): 
     """ returns a tube object with n lateral faces and vertical len(l) subdivisions of length(s) l
     and radius(ii) r.  l and r can be a single value (cylinder) or a list of lengths and radii 
     for subdivisions. top (bot) is the top (bottom) face and is added if True
