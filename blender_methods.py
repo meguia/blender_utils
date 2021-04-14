@@ -337,6 +337,23 @@ def bezier_from_pts(cname,ve,ve_h):
 # =====================================================================
 # MESH METHODS
 
+def mesh_for_circle(name,N,axis,r,offset):
+    """ Returns mesh for a N-segment circle of radius r with normal pointing 
+    along axis and with origin offset 
+    """
+    mesh = bpy.data.meshes.get(name)
+    if mesh is None:
+        mesh = bpy.data.meshes.new(name)
+        ve = []
+        for n in range(N):
+            theta = 2*pi*n/N
+            vv = rotate_list([0, r*cos(theta), r*sin(theta)],-axis)
+            print(vv)
+            ve.append(list(Vector(offset) + Vector(vv)))
+        fa = [tuple(range(N))]
+        mesh.from_pydata(ve, [], fa)
+    return mesh
+
 def mesh_for_plane(name,orient=1):
     """ Returns mesh for a default plane with name and orientation
     """
@@ -402,7 +419,7 @@ def mesh_for_tube(name, nfaces, rlist=1.0, hlist=1.0, top=True, bot=True, axis=2
             for na in range(nfaces):
                 theta = 2*pi*na/nfaces
                 vv = [h, rlist[nh]*cos(theta), rlist[nh]*sin(theta)]            
-                ve.append(rotate_list(vv,axis))
+                ve.append(rotate_list(vv,-axis))
         # Define faces
         fa = []  
         nheights = len(hlist)
@@ -657,6 +674,15 @@ def empty(name, type = 'PLAIN_AXES', size = 1, pos = [0,0,0]):
     emp.location = pos
     return emp
 
+def circle(name,N=32,axis=2,r=1.0,pos=[0,0,0],offset=[0,0,0]):
+    """ returns a circle of radius r and normal along axis,
+    at location pos and origin offset
+    """
+    me = mesh_for_circle(name,N,axis,r,offset)
+    ob = bpy.data.objects.new(me.name,me)
+    ob.location = pos
+    return ob
+
 def rectangle(name, lx, ly, origin=[0,0], pos=[0,0,0]):
     """ returns a plane rectangle of dimensions lx by ly
     """
@@ -693,12 +719,12 @@ def cube(name, mats = None, pos = [0,0,0]):
         ob.data.materials.append(mats)
     return ob
 
-def box(name, dims=[1,1,0.1], mats = None, pos = [0,0,0], top=True, bottom=True):
+def box(name, dims=[1,1,0.1], mats = None, pos = [0,0,0], zoffset = 0, top=True, bottom=True):
     """ returns a rectangular box of dimensions dims = [length(x), width(y), and height(z)]
     with origin at the base center and material mats
     """
     (length,width,height)=dims
-    me = mesh_for_box(name,[-length/2,length/2],[-width/2,width/2],[0,height],top,bottom)
+    me = mesh_for_box(name,[-length/2,length/2],[-width/2,width/2],[zoffset,zoffset+height],top,bottom)
     ob = bpy.data.objects.new(me.name,me)
     ob.location = pos
     if mats is not None:
@@ -733,7 +759,7 @@ def tube(name, n=16, mats = None, r=1.0, l=1.0, pos=[0,0,0], rot=[0,0,0], zoffse
     else:
         if (len(r)<len(h)):
             r.extend([r[-1]]*(len(h)-len(r)))                
-    me = mesh_for_tube(name,n,r,h,top,bot)
+    me = mesh_for_tube(name,n,r,h,top,bot,axis)
     ob = bpy.data.objects.new(me.name,me)
     ob.location = pos
     ob.rotation_euler = rot
@@ -1058,16 +1084,19 @@ def apply_mat(ob,mat):
 ###############################################################################################
 # LIGHT METHODS
 
-def new_spot(name='spot',rot=None,pos=None,tar=None,size=1,blend=0,color=(1,1,1),energy=10,**kwargs):
+def new_spot(name='spot',rot=None,pos=None,tar=None,size=1,blend=0,color=(1,1,1),energy=10,spot_size=0.25,**kwargs):
     """ returns spot object with color energy, location pos, rotation rot or target tar, size and blend
+    for EEVEE
     """
     sp = bpy.data.lights.new(name,'SPOT')
     sp.spot_size = size
     sp.spot_blend = blend
     sp.energy = energy
     sp.color = color
-    sp.use_shadow = True    
-    sp.use_contact_shadow = True
+    # if render EEVEE
+    #sp.use_shadow = True    
+    # if render CYCLES
+    sp.shadow_soft_size = spot_size
     ob_sp = bpy.data.objects.new(sp.name,sp)
     set_posrotar(ob_sp,pos,rot,tar)
     return ob_sp     
@@ -1112,7 +1141,7 @@ def light_grid(ob,Nx,Ny,dx,dy):
     """
     grid1 = grid('auxgrid',ob.location,Nx,Ny,dx,dy)
     ob.parent = grid1
-    ob.parent_type = 'VERTEX'
+    #ob.parent_type = 'VERTEX'  'OBJECT' default
     grid1.instance_type = 'VERTS'
     return grid1
    
