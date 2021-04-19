@@ -145,7 +145,7 @@ def get_center(ob):
     return glob_bb
 
 # ================================================================================
-# LINK AND COLLECTION METHODS 
+# LINK, VISIBILITY AND COLLECTION METHODS 
 
 def iscol(colname):
     """ Returns a collection named colname 
@@ -205,6 +205,17 @@ def list_parent(name,oblist):
     for ob in oblist:
         ob.parent = par
     return par    
+
+def hide_all(oblist, view=True, render=True):
+    """ Hide all object in oblist from view and render
+    """
+    for ob in oblist:
+        if (view):
+            ob.hide_viewport = True
+        if (render):
+            ob.hide_render = True
+            
+            
 
 # ================================================================================
 # CONSTRAINT METHODS
@@ -1114,14 +1125,41 @@ def new_area(name='area',rot=None,pos=None,tar=None,size=0.1,sizey=None,**kwargs
     return ob_al
 
 def new_point(name='point',pos=(0,0,0),color=Color((1,1,1)),power=10,r=0.25,contact=False):
+    """ 
+    """
     pt = bpy.data.lights.new(name,'POINT')
     pt.energy = power
     pt.color = color
-    pt.use_shadow = True    
-    pt.use_contact_shadow = contact
+    # if EEVEE
+    #pt.use_shadow = True    
+    #pt.use_contact_shadow = contact
     ob_pt = bpy.data.objects.new(pt.name,pt)
     ob_pt.location = pos
     return ob_pt     
+
+def new_ieslight(ies_path,name='ieslight',pos=(0,0,0),color=Color((1,1,1)),power=100,r=0.1):
+    """ r > shadow_soft_size
+    """
+    pt = bpy.data.lights.new(name,'POINT')
+    pt.energy = power
+    pt.color = color
+    pt.shadow_soft_size = r
+    pt.use_nodes = True
+    # if EEVEE
+    #pt.use_shadow = True    
+    #pt.use_contact_shadow = contact
+    # creates IES Node
+    Emission = pt.node_tree.nodes['Emission']
+    IES = pt.node_tree.nodes.new('ShaderNodeTexIES')
+    IES.location=Emission.location-Vector((200,0))
+    # connect to Emission
+    pt.node_tree.links.new(Emission.inputs['Strength'],IES.outputs['Fac'])
+    # load IES
+    IES.mode = 'EXTERNAL'
+    IES.filepath = ies_path
+    ob_pt = bpy.data.objects.new(pt.name,pt)
+    ob_pt.location = pos
+    return ob_pt
     
 def new_sun(name='sun',pos=(0,0,0),rot=None,tar=None,power=1.0,color=Color((1,1,1))):
     sun = bpy.data.lights.new(name,'SUN')
@@ -1160,7 +1198,7 @@ def light_array(ob,Nx,Ny,dx,dy):
                 ob2 = ob.copy()
                 ob2.location = ob.location + Vector((nx*dx,ny*dy,0))
                 ob2.name = ob.name + '_' + str(nx) + '_' + str(ny)
-                lights_list.append(ob2)
+                lights_list.append(ob2)            
     return(lights_list)         
     
     
