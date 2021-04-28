@@ -299,36 +299,6 @@ def curve_from_pts(cname,ve,order=5,w=1):
     pl.use_endpoint_u = True
     return cc
 
-def cpath(cname,plist,step):
-    """ Return curve from point list plist
-    """
-    vecs = [] 
-    for n in range(len(step)):
-        vecs += list(linspace(plist[n],plist[n+1],step[n],n==0))
-    cc = curve_from_pts(cname,vecs,5,1)    
-    ob = bpy.data.objects.new(cc.name,cc)          
-    return ob
-
-def spiral(cname,p1,p2,targc,nturn):
-    """ Creates curve with name cname anf number of turns nturns
-    between points p1 and p2 following curve targc
-    """
-    npts = len(targc)
-    d1 = p1-targc[0]
-    d2 = p2-targc[-1]
-    a1 = d1.to_2d().angle_signed(Vector((1,0)))
-    a2 = d2.to_2d().angle_signed(Vector((1,0)))
-    a2 += nturn*2*pi
-    angs = linspace(a1,a2,npts)
-    rads = list(linspace(d1.to_2d().length,d2.to_2d().length,npts))
-    zs = list(linspace(d1.z,d2.z,npts))
-    vecs = []
-    for n,ang in enumerate(angs):
-        vecs.append(targc[n]+Vector((rads[n]*cos(ang),rads[n]*sin(ang),zs[n])))
-    cc = curve_from_pts(cname,vecs,5,1)
-    ob = bpy.data.objects.new(cc.name,cc)          
-    return ob
-
 def bezier_from_pts(cname,ve,ve_h):
     """ Returns BEZIER curve of order from point list ve
     handles are ALIGNED and right positioned at ve_h
@@ -339,9 +309,10 @@ def bezier_from_pts(cname,ve,ve_h):
     pl.bezier_points.add(len(ve)-1)
     for n,pt in enumerate(pl.bezier_points):
         pt.co = list(ve[n])
-        pt.handle_left_type = 'ALIGNED'
-        pt.handle_right_type = 'ALIGNED'
+        #pt.handle_left_type = 'ALIGNED'
+        #pt.handle_right_type = 'ALIGNED'
         pt.handle_right = list(ve_h[n])
+        pt.handle_left = list(2*Vector(ve[n])-Vector(ve_h[n]))
     return cc
 
     
@@ -392,7 +363,7 @@ def mesh_for_planeve(name,ve,orient=1):
         mesh.from_pydata(ve, [], fa)
     return mesh
 
-def mesh_for_cylinder(nfaces,name,r=1.0, h=1.0, zoffset=0):
+def mesh_for_cylinder(name,nfaces, r=1.0, h=1.0, zoffset=0):
     """ Returns mesh for a cylinder with name, n lateral faces,radius r, 
     hight h and origin offset zoffset
     """
@@ -403,12 +374,11 @@ def mesh_for_cylinder(nfaces,name,r=1.0, h=1.0, zoffset=0):
         ve = [Vector((r*cos(t), r*sin(t), -zoffset)) for t in theta]
         ve.extend([v + Vector((0,0,h)) for v in ve])
         fa = []  
-        for nh in range(2):
-            for na in range(nfaces-1):
-                fa.append([nh*nfaces+na, nh*nfaces+na+1, nh*nfaces+nfaces+na+1, nh*nfaces+nfaces+na])
-            fa.append([nh*nfaces+nfaces-1, nh*nfaces, nh*nfaces+nfaces, nh*nfaces+nfaces+nfaces-1])  
+        for na in range(nfaces-1):
+            fa.append([na, na+1, nfaces+na+1, nfaces+na])
+        fa.append([nfaces-1, 0, nfaces, 2*nfaces-1])  
         fa.append([nfaces-1-na for na in range(nfaces)])
-        fa.append([(nheights-1)*nfaces+na for na in range(nfaces)])
+        fa.append([nfaces+na for na in range(nfaces)])
         mesh.from_pydata(ve, [], fa)
     return mesh     
 
@@ -676,6 +646,8 @@ def mesh_name_as_object(list_of_objects):
 # ================================================================================
 # OBJECT METHODS
 
+# DATA EMPTY AND CURVE
+
 def empty(name, type = 'PLAIN_AXES', size = 1, pos = [0,0,0]):
     """ returns empty object with given name, type and location pos
     """
@@ -685,23 +657,51 @@ def empty(name, type = 'PLAIN_AXES', size = 1, pos = [0,0,0]):
     emp.location = pos
     return emp
 
-def circle(name,N=32,axis=2,r=1.0,pos=[0,0,0],offset=[0,0,0]):
-    """ returns a circle of radius r and normal along axis,
-    at location pos and origin offset
+def cpath(cname,plist,step):
+    """ Return NURBS curve object from point list plist
     """
-    me = mesh_for_circle(name,N,axis,r,offset)
-    ob = bpy.data.objects.new(me.name,me)
-    ob.location = pos
+    vecs = [] 
+    for n in range(len(step)):
+        vecs += list(linspace(plist[n],plist[n+1],step[n],n==0))
+    cc = curve_from_pts(cname,vecs,5,1)    
+    ob = bpy.data.objects.new(cc.name,cc)          
     return ob
 
-def rectangle(name, lx, ly, origin=[0,0], pos=[0,0,0]):
-    """ returns a plane rectangle of dimensions lx by ly
+def spiral(cname,p1,p2,targc,nturn):
+    """ Creates curve with name cname anf number of turns nturns
+    between points p1 and p2 following curve targc
     """
-    (x0,y0) = origin
-    ve = [ Vector((x0,y0,0)), Vector((x0+lx,y0,0)), Vector((x0,y0+ly,0)), Vector((x0+lx,y0+ly,0))]
-    me = mesh_for_planeve(name,ve)
-    ob = bpy.data.objects.new(me.name,me)
-    ob.location = pos
+    npts = len(targc)
+    d1 = p1-targc[0]
+    d2 = p2-targc[-1]
+    a1 = d1.to_2d().angle_signed(Vector((1,0)))
+    a2 = d2.to_2d().angle_signed(Vector((1,0)))
+    a2 += nturn*2*pi
+    angs = linspace(a1,a2,npts)
+    rads = list(linspace(d1.to_2d().length,d2.to_2d().length,npts))
+    zs = list(linspace(d1.z,d2.z,npts))
+    vecs = []
+    for n,ang in enumerate(angs):
+        vecs.append(targc[n]+Vector((rads[n]*cos(ang),rads[n]*sin(ang),zs[n])))
+    cc = curve_from_pts(cname,vecs,5,1)
+    ob = bpy.data.objects.new(cc.name,cc)          
+    return ob
+
+def smooth_bezier(name, pts, rhandle = 'auto',bevel=0, resolution=12,alpha=0.2):
+    """ returns object with curve data bezier following points in pts
+    y rhandle is auto, handles are interpolated between points and extrapolated for last point.
+    alpha is the relative length of bezier handles with respect to the distance btw points
+    bevel option can make the curve solid, and resolution is adjusted for smoothing
+    """
+    np = len(pts)
+    if rhandle is 'auto':
+        rhandle = [Vector(pts[n])+alpha*(Vector(pts[n+1])-Vector(pts[n-1])) for n in range(1,np-1)]
+        rhandle.insert(0, Vector(pts[0])+alpha*(Vector(pts[1])-Vector(pts[0])))
+        rhandle.append(Vector(pts[-1])+alpha*(Vector(pts[-1])-Vector(pts[-2])))
+    cc = bezier_from_pts(name,pts,rhandle)
+    cc.bevel_depth = bevel
+    cc.resolution_u = resolution
+    ob = bpy.data.objects.new(cc.name,cc)          
     return ob
 
 def curve_bezier(name, ve=[[-1,0,0],[1,0,0]], theta=[-pi/4, pi/4], phi=None, pos=[0,0,0]):
@@ -718,24 +718,49 @@ def curve_bezier(name, ve=[[-1,0,0],[1,0,0]], theta=[-pi/4, pi/4], phi=None, pos
     cu = bezier_from_pts(name,ve,ve_h)
     ob = bpy.data.objects.new(cu.name,cu)
     ob.location = pos
+    return ob    
+    
+
+# DATA MESH
+
+def circle(name,N=32,axis=2,r=1.0,pos=[0,0,0],offset=[0,0,0]):
+    """ returns a circle of radius r and normal along axis,
+    at location pos and origin offset
+    """
+    me = mesh_for_circle(name,N,axis,r,offset)
+    ob = bpy.data.objects.new(me.name,me)
+    ob.location = pos
     return ob
 
-def cube(name, mats = None, pos = [0,0,0]): 
+def rectangle(name, lx, ly, origin=[0,0], pos=[0,0,0]):
+    """ returns a plane rectangle of dimensions lx by ly with origin at vertex
+    """
+    (x0,y0) = origin
+    ve = [ Vector((x0,y0,0)), Vector((x0+lx,y0,0)), Vector((x0,y0+ly,0)), Vector((x0+lx,y0+ly,0))]
+    me = mesh_for_planeve(name,ve)
+    ob = bpy.data.objects.new(me.name,me)
+    ob.location = pos
+    return ob
+
+
+
+def cube(name, mats = None, pos = [0,0,0],zorigin=0): 
     """ returns cube object at location pos with materials mats
     """
-    me = mesh_for_cube(name)
+    me = mesh_for_cube(name,zorigin)
     ob = bpy.data.objects.new(me.name,me)
     ob.location = pos
     if mats is not None:
         ob.data.materials.append(mats)
     return ob
 
-def box(name, dims=[1,1,0.1], mats = None, pos = [0,0,0], zoffset = 0, top=True, bottom=True):
+def box(name, dims=[1,1,0.1], mats = None, pos = [0,0,0], origin = [0,0,0], top=True, bottom=True):
     """ returns a rectangular box of dimensions dims = [length(x), width(y), and height(z)]
-    with origin at the base center and material mats
+    with origin at the base vertex and material mats
     """
     (length,width,height)=dims
-    me = mesh_for_box(name,[-length/2,length/2],[-width/2,width/2],[zoffset,zoffset+height],top,bottom)
+    (x0,y0,z0) = origin
+    me = mesh_for_box(name,[x0,x0+length],[y0,y0+width],[z0,z0+height],top,bottom)
     ob = bpy.data.objects.new(me.name,me)
     ob.location = pos
     if mats is not None:
