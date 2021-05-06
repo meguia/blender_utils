@@ -646,6 +646,12 @@ def mesh_name_as_object(list_of_objects):
 # ================================================================================
 # OBJECT METHODS
 
+def object_from_data(name, data):
+    ob = bpy.data.objects.get(name)
+    if ob is None:
+        ob = bpy.data.objects.new(name,data)
+    return ob    
+
 # DATA EMPTY AND CURVE
 
 def empty(name, type = 'PLAIN_AXES', size = 1, pos = [0,0,0]):
