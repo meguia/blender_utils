@@ -444,6 +444,19 @@ def mesh_for_recboard(name,xs,ys,zs):
         me = mesh_for_planeve(name,ve,1)    
     return me  
 
+def mesh_for_vertical_plane(name,xs,ys,zs):
+    """ Returns mesh for a verticual rectangular plane vith vertices
+    located in xs[0] xs[1], yx[0] ys[1], and zs[0] zs[1]
+    """     
+    if(xs[0]!=xs[1]):
+        ve = [Vector((xs[0],ys[0],zs[0])),Vector((xs[1],ys[1],zs[0])),
+          Vector((xs[0],ys[1],zs[1])),Vector((xs[1],ys[1],zs[1]))]
+    if(xs[0]==xs[1]):
+        ve = [Vector((xs[0],ys[0],zs[0])),Vector((xs[1],ys[1],zs[0])),
+          Vector((xs[1],ys[0],zs[1])),Vector((xs[0],ys[1],zs[1]))]
+    me = mesh_for_planeve(name,ve,0)    
+    return me  
+
 def mesh_for_board(name,vertices,thick):
     """ Return mesh for board given four vertices and thickness
     """
