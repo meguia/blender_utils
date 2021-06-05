@@ -141,7 +141,7 @@ def gray(val,alpha=1):
 # MATERIALS
 
 
-def simple_material(matName,basecolor,subcolor=None,specular=0,roughness=0,metallic=0,subsurf=0,emission=[0,0,0,1]):
+def simple_material(matName,basecolor,subcolor=None,specular=0,roughness=0,metallic=0,subsurf=0,emission=[0,0,0,1],estrength=1):
     """ Simple Principled Material with name matName specifying 
     color, specular, roughness and metallic values, and Subsurface
     """    
@@ -154,6 +154,7 @@ def simple_material(matName,basecolor,subcolor=None,specular=0,roughness=0,metal
     PBSDF.inputs["Roughness"].default_value = roughness
     PBSDF.inputs["Metallic"].default_value = metallic
     PBSDF.inputs["Emission"].default_value = emission
+    PBSDF.inputs["Emission Strength"].default_value = estrength
     if subcolor is not None:
         PBSDF.inputs["Subsurface"].default_value = subsurf
         PBSDF.inputs["Subsurface Color"].default_value = subcolor

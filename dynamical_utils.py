@@ -20,14 +20,8 @@ def findperiod(t,x):
     per = np.diff(t[peaks])
     return np.mean(per)
 
-def axes2D(xlim='auto',ylim='auto',ticks='auto'):
+def axes2D(xlim=[-1,1],ylim=[-1,1],ticks='auto'):
     #creates plane xy for plot at origin 
-    if xlim is 'auto':
-        (xl,xh) = [min(x),max(x)]
-        xlim = [1.1*xl-0.1*xh,1.1*xh-0.1*xl]
-    if ylim is 'auto':
-        (yl,yh) = [min(y),max(y)]
-        ylim = [1.1*yl-0.1*yh,1.1*yh-0.1*yl]
     xrange = xlim[1]-xlim[0]
     yrange = ylim[1]-ylim[0]    
     pln = bm.rectangle('canvas', xrange, yrange, origin=[xlim[0],ylim[0]])
@@ -50,7 +44,17 @@ def plot2D(x,y,xlim='auto',ylim='auto',type='line',ticks='auto', wdot=False):
     ticks can be 'auto' for min(xdim,ydim)/8 spacing, 'none', or set to specific values in a 2d list
     '''
     #creates plane xy for plot at origin 
-    pln = axes2D(xlim='auto',ylim='auto',ticks='auto')
+    if xlim == 'auto':
+        (xl,xh) = [min(x),max(x)]
+        xlim = [1.1*xl-0.1*xh,1.1*xh-0.1*xl]
+    if ylim == 'auto':
+        (yl,yh) = [min(y),max(y)]
+        ylim = [1.1*yl-0.1*yh,1.1*yh-0.1*yl]
+    pln = axes2D(xlim=xlim,ylim=ylim,ticks='auto')
+    xrange = xlim[1]-xlim[0]
+    yrange = ylim[1]-ylim[0]    
+    l = min(xrange,yrange)
+    lwidth = l/1000 
     #creates bezier curve with data 
     pts = [[x[n],y[n],0] for n in range(len(x))]
     plt = bm.smooth_bezier('plot',pts,bevel=lwidth)
@@ -62,10 +66,21 @@ def plot2D_animated(x,y,t,xlim='auto',ylim='auto',type='line',ticks='auto'):
     all other parameters are the same as plot2D
     '''
     #creates plane xy for plot at origin 
-    pln = axes2D(xlim='auto',ylim='auto',ticks='auto')
+    if xlim == 'auto':
+        (xl,xh) = [min(x),max(x)]
+        xlim = [1.1*xl-0.1*xh,1.1*xh-0.1*xl]
+    if ylim == 'auto':
+        (yl,yh) = [min(y),max(y)]
+        ylim = [1.1*yl-0.1*yh,1.1*yh-0.1*yl]
+    pln = axes2D(xlim=xlim,ylim=ylim,ticks='auto')
+    xrange = xlim[1]-xlim[0]
+    yrange = ylim[1]-ylim[0]    
+    l = min(xrange,yrange)
+    lwidth = l/1000 
     #creates bezier curve with data 
     pts = [[x[n],y[n],0] for n in range(len(x))]
     plt = bm.smooth_bezier('plot',pts,bevel=lwidth)
+    bm.animate_curve(plt.data,'pltanim','bevel_factor_end',[0,len(x)],[0,1])
     plt.parent = pln    
     # create a dot following (x,y)
     dot = bm.cylinder('dot', r=lwidth*8, h=lwidth*2, pos=[x[0],y[0],0])
@@ -74,7 +89,6 @@ def plot2D_animated(x,y,t,xlim='auto',ylim='auto',type='line',ticks='auto'):
     bm.animate_curve(dot,'dotanim','location',t,fkeys)        
     return pln
 
-def plot2D_flux(
 
 def solve_plot(syst,pars,xini,tmax,pv=[0,1],dt=0.005,dtframe=3):
     t = np.arange(0, tmax, dt)
@@ -86,6 +100,38 @@ def solve_plot(syst,pars,xini,tmax,pv=[0,1],dt=0.005,dtframe=3):
     frames = np.arange(len(x))
     pln = plot2D_animated(x,y,frames)
     return pln
+
+def plot2D_flux(syst,pars,xini_array,tmax,pv=[0,1],dt=0.005,dtframe=3,xlim=[-1,1],ylim=[-1,1]):
+    t = np.arange(0, tmax, dt)
+    #creates plane xy for plot at origin 
+    pln = axes2D(xlim=xlim,ylim=ylim,ticks='auto')
+    xrange = xlim[1]-xlim[0]
+    yrange = ylim[1]-ylim[0]    
+    l = min(xrange,yrange)
+    lwidth = l/10000 
+    # create a dot model
+    dot0 = bm.cylinder('dot', r=lwidth*10, h=lwidth*5, pos=[0,0,0])    
+    # loop over initial conditions]
+    for m,xini in enumerate(xini_array):
+        print(m)
+        s = solve(syst, t, xini, args=pars, method='RK45') 
+        x = s[::dtframe,pv[0]]
+        y = s[::dtframe,pv[1]]
+        frames = np.arange(len(x))
+        pts = [[x[n],y[n],0] for n in range(len(x))]
+        plt = bm.smooth_bezier('plot_'+ str(m),pts,bevel=lwidth)
+        #animate curve
+        bm.animate_curve(plt.data,'pltanim_'+str(m),'bevel_factor_end',[0,len(x)],[0,1])
+        plt.parent = pln    
+        # create a dot following (x,y)
+        dot = bm.duplicate_linked_ob(dot0,'dot_'+str(m))
+        dot.parent = pln
+        fkeys = [[x[n],y[n],0] for n in range(len(x))]
+        frames = np.arange(len(x))
+        bm.animate_curve(dot,'dotanim_'+str(m),'location',frames,fkeys)        
+    return pln
+
+
 
 def solve_plot_body(syst,pars,xini,tmax,body=None,pv=[0,1],dt=0.005,dtframe=3):
     t = np.arange(0, tmax, dt)

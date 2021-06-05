@@ -971,6 +971,12 @@ def replace_material(list_of_objects,name_match,material):
 ###################################################################################
 # SIMPLE OPERATORS AND MODIFIER METHODS
 
+def duplicate_linked_ob(ob, name):
+    """ duplicate linked object and returns new objects wit object name
+    """
+    ob2 = bpy.data.objects.new(name, ob.data)
+    return ob2
+
 def duplicate_ob(ob, name):
     """ duplicates object ob and returns new object with object name 'name'
     and mesh name idem
