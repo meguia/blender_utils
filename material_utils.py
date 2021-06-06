@@ -137,6 +137,28 @@ def gray(val,alpha=1):
     """
     return [val,val,val,alpha]
 
+def map1color(coord,cmap_path):
+    """ returns color from 1D colormap given in file cmap_path
+    using normalized coordinates coord 
+    """
+    cmap = bpy.data.images.load(cmap_path, check_existing=True)
+    (w,h) = cmap.size
+    px = min(int(coord[0]*w),w-1)
+    idx = px*4
+    return cmap.pixels[idx:idx+4]
+
+def map2color(coord,cmap_path):
+    """ returns color from 2D colormap given in file cmap_path
+    using coordinates coord in the unit square
+    """
+    cmap = bpy.data.images.load(cmap_path, check_existing=True)
+    (w,h) = cmap.size
+    px = min(int(coord[0]*w),w-1)
+    py = min(int(coord[1]*h),h-1)
+    idx = (py*w+px)*4
+    return cmap.pixels[idx:idx+4]
+    
+
 ##############################
 # MATERIALS
 
@@ -158,6 +180,30 @@ def simple_material(matName,basecolor,subcolor=None,specular=0,roughness=0,metal
     if subcolor is not None:
         PBSDF.inputs["Subsurface"].default_value = subsurf
         PBSDF.inputs["Subsurface Color"].default_value = subcolor
+    m.mat.diffuse_color = basecolor
+    m.link(PBSDF,'BSDF',materialOutput,'Surface')
+    return m.mat
+
+def colormap_material(matName,coord,cmap_path,specular=0,roughness=0,metallic=0,emission=False,estrength=1):
+    """ Simple Principled Material with name matName with color given 
+    by a 1d/2d colormap using colormap given in file cmap_path and
+    normalized coordinates coord (1d or 2d)
+    if emission is true the same color is used for emission
+    """    
+    m = Material(matName)
+    #m.make_material(matName)
+    materialOutput = m.nodes['Material Output']
+    PBSDF = m.nodes['Principled BSDF']
+    if len(coord)>1:
+        basecolor = map2color(coord,cmap_path)
+    else:
+        basecolor = map1color(coord,cmap_path)    
+    PBSDF.inputs["Base Color"].default_value = basecolor
+    PBSDF.inputs["Specular"].default_value = specular
+    PBSDF.inputs["Roughness"].default_value = roughness
+    PBSDF.inputs["Metallic"].default_value = metallic
+    PBSDF.inputs["Emission"].default_value = basecolor
+    PBSDF.inputs["Emission Strength"].default_value = estrength
     m.mat.diffuse_color = basecolor
     m.link(PBSDF,'BSDF',materialOutput,'Surface')
     return m.mat

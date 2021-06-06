@@ -1,12 +1,14 @@
 import numpy as np
 
 import blender_methods as bm
+import material_utils as mu
 from scipy.integrate import solve_ivp
 from scipy.signal import find_peaks
 from scipy.fft import fft
 import importlib as imp
 
 imp.reload(bm)
+imp.reload(mu)
 
 
 def solve(func,t,x0,method='DOP853',args=None):
@@ -131,7 +133,44 @@ def plot2D_flux(syst,pars,xini_array,tmax,pv=[0,1],dt=0.005,dtframe=3,xlim=[-1,1
         bm.animate_curve(dot,'dotanim_'+str(m),'location',frames,fkeys)        
     return pln
 
-
+def plot2D_flux_colors(syst,pars,xini_array,tmax,cmap_path,pv=[0,1],dt=0.005,dtframe=3,xlim=[-1,1],ylim=[-1,1]):
+    t = np.arange(0, tmax, dt)
+    #creates plane xy for plot at origin 
+    pln = axes2D(xlim=xlim,ylim=ylim,ticks='auto')
+    xrange = xlim[1]-xlim[0]
+    yrange = ylim[1]-ylim[0]    
+    l = min(xrange,yrange)
+    lwidth = l/10000 
+    # create a dot model
+    dot0 = bm.cylinder('dot', r=lwidth*10, h=lwidth*3, pos=[0,0,0])    
+    # loop over initial conditions]
+    for m,xini in enumerate(xini_array):
+        print(m)
+        # define material for orbit (dim) and point (bright)
+        coord = [(xini[0]-xlim[0])/xrange,(xini[1]-ylim[0])/yrange]
+        pmat = mu.colormap_material('pmat'+str(m),coord,cmap_path,emission=True,estrength=0.1)
+        dmat = mu.colormap_material('dmat'+str(m),coord,cmap_path,emission=True,estrength=1)
+        s = solve(syst, t, xini, args=pars, method='RK45') 
+        x = s[::dtframe,pv[0]]
+        y = s[::dtframe,pv[1]]
+        frames = np.arange(len(x))
+        pts = [[x[n],y[n],0] for n in range(len(x))]
+        plt = bm.smooth_bezier('plot_'+ str(m),pts,bevel=lwidth)
+        #animate curve
+        bm.animate_curve(plt.data,'pltanim_'+str(m),'bevel_factor_end',[0,len(x)],[0,1])
+        plt.parent = pln    
+        # assigns color
+        plt.data.materials.append(pmat)
+        # create a dot following (x,y)
+        dot = bm.duplicate_linked_ob(dot0,'dot_'+str(m))
+        dot.parent = pln
+        fkeys = [[x[n],y[n],0] for n in range(len(x))]
+        frames = np.arange(len(x))
+        bm.animate_curve(dot,'dotanim_'+str(m),'location',frames,fkeys)
+        dot.data.materials.append(dmat)
+        dot.material_slots[0].link = 'OBJECT'
+        dot.material_slots[0].material = dmat
+    return pln
 
 def solve_plot_body(syst,pars,xini,tmax,body=None,pv=[0,1],dt=0.005,dtframe=3):
     t = np.arange(0, tmax, dt)
@@ -180,7 +219,11 @@ def van_der_pol(t, x, W, C):
     ]        
         
 
-
+def takens(t, x, A, B):
+    return [
+        x[1],
+        -A-B*x[0]-x[0]*(x[1]*(x[0]+1)+x[0]*(x[0]-1)),
+    ]
     
 
     
