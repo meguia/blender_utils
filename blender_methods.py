@@ -1510,13 +1510,14 @@ def set_render_output(path, format = 'PNG', quality=90, encoding = None, codec=N
         scnr.ffmpeg.codec = codec
     return
 
-def set_render_eevee(samples = 32, ssr = False, bloom = False, softs = True, gtao = False, refraction = False):
+def set_render_eevee(samples = 32, ssr = False, bloom = False, bloom_int=0.05, softs = True, gtao = False, refraction = False):
     set_eevee()
     scne.taa_render_samples = samples
     scne.use_ssr = ssr
     scne.use_ssr_refraction = refraction
     scne.use_ssr_halfres = False
     scne.use_bloom = bloom
+    scne.bloom_intensity = bloom_int
     scne.use_soft_shadows = softs
     scne.use_shadow_high_bitdepth = True
     scne.use_gtao = gtao

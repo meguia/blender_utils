@@ -22,17 +22,17 @@ def findperiod(t,x):
     per = np.diff(t[peaks])
     return np.mean(per)
 
-def axes2D(xlim=[-1,1],ylim=[-1,1],ticks='auto'):
+def axes2D(name='canvas',xlim=[-1,1],ylim=[-1,1],ticks='auto'):
     #creates plane xy for plot at origin 
     xrange = xlim[1]-xlim[0]
     yrange = ylim[1]-ylim[0]    
-    pln = bm.rectangle('canvas', xrange, yrange, origin=[xlim[0],ylim[0]])
+    pln = bm.rectangle(name, xrange, yrange, origin=[xlim[0],ylim[0]])
     l = min(xrange,yrange)
     dticks = l/8.0
     lwidth = l/1000 # line width 1/1000 of plot
     # axis boxes
-    xaxis = bm.box('xaxis', dims=[xrange,lwidth,lwidth], origin=[xlim[0],0,0])
-    yaxis = bm.box('yaxis', dims=[lwidth,yrange,lwidth], origin=[0,ylim[0],0])
+    xaxis = bm.box(name+'_xaxis', dims=[xrange,lwidth,lwidth], origin=[xlim[0],0,0])
+    yaxis = bm.box(name+'_yaxis', dims=[lwidth,yrange,lwidth], origin=[0,ylim[0],0])
     xaxis.parent = pln
     yaxis.parent = pln
     # ticks boxes array
@@ -63,7 +63,7 @@ def plot2D(x,y,xlim='auto',ylim='auto',type='line',ticks='auto', wdot=False):
     plt.parent = pln
     return pln
     
-def plot2D_animated(x,y,t,xlim='auto',ylim='auto',type='line',ticks='auto'):
+def plot2D_animated(x,y,t,pltname='plotxy',xlim='auto',ylim='auto',type='line',ticks='auto'):
     ''' creates an animated plot of array y vs array x parametrized with array t in frames 
     all other parameters are the same as plot2D
     '''
@@ -74,34 +74,40 @@ def plot2D_animated(x,y,t,xlim='auto',ylim='auto',type='line',ticks='auto'):
     if ylim == 'auto':
         (yl,yh) = [min(y),max(y)]
         ylim = [1.1*yl-0.1*yh,1.1*yh-0.1*yl]
-    pln = axes2D(xlim=xlim,ylim=ylim,ticks='auto')
+    pln = axes2D(name=pltname,xlim=xlim,ylim=ylim,ticks='auto')
     xrange = xlim[1]-xlim[0]
     yrange = ylim[1]-ylim[0]    
     l = min(xrange,yrange)
     lwidth = l/1000 
     #creates bezier curve with data 
     pts = [[x[n],y[n],0] for n in range(len(x))]
-    plt = bm.smooth_bezier('plot',pts,bevel=lwidth)
-    bm.animate_curve(plt.data,'pltanim','bevel_factor_end',[0,len(x)],[0,1])
+    plt = bm.smooth_bezier(pltname+'_curve',pts,bevel=lwidth)
+    bm.animate_curve(plt.data,pltname+'_pltanim','bevel_factor_end',[0,len(x)],[0,1])
     plt.parent = pln    
     # create a dot following (x,y)
-    dot = bm.cylinder('dot', r=lwidth*8, h=lwidth*2, pos=[x[0],y[0],0])
+    dot = bm.cylinder(pltname + '_dot', r=lwidth*8, h=lwidth*2, pos=[x[0],y[0],0])
     dot.parent = pln
     fkeys = [[x[n],y[n],0] for n in range(len(x))]
-    bm.animate_curve(dot,'dotanim','location',t,fkeys)        
+    bm.animate_curve(dot,pltname+'_dotanim','location',t,fkeys)        
     return pln
 
 
-def solve_plot(syst,pars,xini,tmax,pv=[0,1],dt=0.005,dtframe=3):
+def solve_plot(syst,pars,xini,tmax,pv=[0,1],dt=0.005,dtframe=3,xyt=False):
     t = np.arange(0, tmax, dt)
     s = solve(syst, t, xini, args=pars, method='RK45') 
     print('system solved')
     # only two variables 
+    t = t[::dtframe]
     x = s[::dtframe,pv[0]]
     y = s[::dtframe,pv[1]]
-    frames = np.arange(len(x))
-    pln = plot2D_animated(x,y,frames)
-    return pln
+    pln = plot2D_animated(x,y,t)
+    if xyt:
+        plx = plot2D_animated(t,x,t,'plotx')
+        ply = plot2D_animated(t,y,t,'ploty')
+        return (plx,ply,pln)
+    else:    
+        return pln
+
 
 def plot2D_flux(syst,pars,xini_array,tmax,pv=[0,1],dt=0.005,dtframe=3,xlim=[-1,1],ylim=[-1,1]):
     t = np.arange(0, tmax, dt)
@@ -142,14 +148,14 @@ def plot2D_flux_colors(syst,pars,xini_array,tmax,cmap_path,pv=[0,1],dt=0.005,dtf
     l = min(xrange,yrange)
     lwidth = l/10000 
     # create a dot model
-    dot0 = bm.cylinder('dot', r=lwidth*10, h=lwidth*3, pos=[0,0,0])    
+    dot0 = bm.cylinder('dot', r=lwidth*10, h=lwidth*10, pos=[0,0,0])    
     # loop over initial conditions]
     for m,xini in enumerate(xini_array):
         print(m)
         # define material for orbit (dim) and point (bright)
         coord = [(xini[0]-xlim[0])/xrange,(xini[1]-ylim[0])/yrange]
         pmat = mu.colormap_material('pmat'+str(m),coord,cmap_path,emission=True,estrength=0.1)
-        dmat = mu.colormap_material('dmat'+str(m),coord,cmap_path,emission=True,estrength=1)
+        dmat = mu.colormap_material('dmat'+str(m),coord,cmap_path,emission=True,estrength=100)
         s = solve(syst, t, xini, args=pars, method='RK45') 
         x = s[::dtframe,pv[0]]
         y = s[::dtframe,pv[1]]

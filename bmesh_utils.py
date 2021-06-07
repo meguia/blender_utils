@@ -1,6 +1,6 @@
 import bmesh
 
-def face_split(me, face_index, edge_indices=[0,2], fac = 0.5):
+def face_split(me, face_index, edge_indices=[1,3], fac = 0.5):
     bm = bmesh.new()
     bm.from_mesh(me)
     bm.faces.ensure_lookup_table()
