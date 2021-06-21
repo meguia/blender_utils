@@ -1,5 +1,4 @@
 import numpy as np
-
 import blender_methods as bm
 import material_utils as mu
 from scipy.integrate import solve_ivp
@@ -7,12 +6,10 @@ from scipy.signal import find_peaks
 from scipy.fft import fft
 import importlib as imp
 
-imp.reload(bm)
-imp.reload(mu)
-
 
 def solve(func,t,x0,method='DOP853',args=None):
-    sol = solve_ivp(func, t[[0,-1]], x0, method=method, t_eval=t, args=args)
+    dt = np.abs(t[1]-t[0])
+    sol = solve_ivp(func, t[[0,-1]], x0, method=method, t_eval=t, args=args,max_step=dt,dense_output=True)
     if sol.status < 0:
         print(sol.message)
     return sol.y.T
@@ -38,6 +35,17 @@ def axes2D(name='canvas',xlim=[-1,1],ylim=[-1,1],ticks='auto'):
     # ticks boxes array
     return pln
 
+def axes1C(name='cycle',radius=1):
+    #creates a 1D plot over the circle
+    pln = bm.rectangle(name, 2.2*radius, 2.2*radius, origin=[-1.1*radius,-1.1*radius])
+    dticks = radius/8.0
+    lwidth = radius/1000 # line width 1/1000 of plot
+    xaxis = bm.box(name+'_xaxis', dims=[radius*1.1,lwidth,lwidth], origin=[0,0,0])
+    caxis = bm.annulus(name+'_cxis',N=128,r1=radius,r2=radius-lwidth,pos=[0,0,lwidth])    
+    xaxis.parent=pln
+    caxis.parent=pln    
+    return pln
+    
 def axes3D(name='axes',xlim=[-1,1],ylim=[-1,1],zlim=[-1,1],ticks='auto'):
     #creates plane xy for plot at origin 
     xrange = xlim[1]-xlim[0]
@@ -93,6 +101,7 @@ def plot2D_animated(x,y,t,pltname='plotxy',xlim='auto',ylim='auto',type='line',t
         (yl,yh) = [min(y),max(y)]
         ylim = [1.1*yl-0.1*yh,1.1*yh-0.1*yl]
     pln = axes2D(name=pltname,xlim=xlim,ylim=ylim,ticks='auto')
+    print(ylim)
     xrange = xlim[1]-xlim[0]
     yrange = ylim[1]-ylim[0]    
     l = min(xrange,yrange)
@@ -109,6 +118,71 @@ def plot2D_animated(x,y,t,pltname='plotxy',xlim='auto',ylim='auto',type='line',t
     bm.animate_curve(dot,pltname+'_dotanim','location',t,fkeys)        
     return pln
 
+def solve_plot1D_circle(syst,pars,xini,tmax,dt,sfp=[],ufp=[],dtframe=3,method='RK45'):
+    ''' creates an animated plot of array x in the circle
+    '''
+    pltname='cycle'
+    t = np.arange(0, tmax, dt)
+    s = solve(syst, t, xini, args=pars, method='RK45') 
+    print('system solved')
+    t = t[::dtframe]
+    x = s[::dtframe]
+    frames = np.arange(len(x))
+    rad = 1.0
+    tscale = 2*rad/tmax
+    pln = axes1C(name=pltname,radius=rad)
+    plx = plot2D_animated(t*tscale,np.cos(x),frames,'plotx',ylim=[-rad*1.1,rad*1.1])
+    plx.location = [0,-1.5*rad,0]
+    plx.rotation_euler = [0,0,-np.pi/2]
+    lwidth = rad/1000 
+    for p in sfp:
+        sp = bm.cylinder(pltname + '_sfp', r=lwidth*10, h=lwidth*5, pos=[rad*np.cos(p),rad*np.sin(p),0])
+        sp.parent = pln
+    for p in ufp:
+        up = bm.box(pltname+'_ufp', dims=[lwidth*40,lwidth,lwidth], origin=[-lwidth*20,0,0],pos=[rad*np.cos(p),rad*np.sin(p),0],rot=[0,0,p]) 
+        up.parent = pln
+    # create a dot following circle x is teh angle in radians
+    dot = bm.cylinder(pltname + '_dot', r=lwidth*10, h=lwidth*5, pos=[rad*np.cos(x[0]),rad*np.sin(x[0]),0])
+    dot.parent = pln
+    fkeys = [[rad*np.cos(x[n]),rad*np.sin(x[n]),0] for n in range(len(x))]
+    bm.animate_curve(dot,pltname+'_dotanim','location',frames,fkeys)
+    # and a dot hand
+    hand =  bm.box(pltname+'_hand', dims=[rad,lwidth,lwidth])       
+    hand.parent = pln
+    fkeys = [[0,0,x[n]] for n in range(len(x))]
+    bm.animate_curve(hand,pltname+'_handanim','rotation_euler',frames,fkeys)
+    return pln,plx
+
+def solve_plot2D_torus(syst,pars,xini,tmax,dt,dtframe=3,method='RK45'):
+    ''' creates an animated plot of array x,y in the torus
+    '''
+    pltname='torus'
+    t = np.arange(0, tmax, dt)
+    s = solve(syst, t, xini, args=pars, method='RK45') 
+    print('system solved')
+    t = t[::dtframe]
+    a1 = s[::dtframe,0]
+    a2 = s[::dtframe,1]
+    frames = np.arange(len(t))
+    r1 = 1.0
+    r2 = 0.2
+    pln = bm.torus('torus',r1,r2,64,32)
+    lwidth = r1/1000 
+    # curve following torus
+    x = [r1*np.cos(a1[n])+r2*np.cos(a1[n])*np.cos(a2[n]) for n in range(len(t))]
+    y = [r1*np.sin(a1[n])+r2*np.sin(a1[n])*np.cos(a2[n]) for n in range(len(t))]
+    z = [r2*np.sin(a2[n]) for n in range(len(t))]
+    #creates bezier curve with data 
+    pts = [[x[n],y[n],z[n]] for n in range(len(x))]
+    plt = bm.smooth_bezier(pltname+'_curve',pts,bevel=lwidth)
+    bm.animate_curve(plt.data,pltname+'_pltanim','bevel_factor_end',[0,len(x)],[0,1])
+    plt.parent = pln    
+    # create a dot following (x,y)
+    dot = bm.icosphere(pltname + '_dot', r = lwidth*5, sub = 2)
+    dot.parent = pln
+    fkeys = [[x[n],y[n],z[n]] for n in range(len(x))]
+    bm.animate_curve(dot,pltname+'_dotanim','location',frames,fkeys)      
+    return pln
 
 
 def solve_plot_2D(syst,pars,xini,tmax,pv=[0,1],dt=0.005,dtframe=3,xyt=False):
@@ -245,6 +319,111 @@ def plot1D_flux_colors(syst,pars,xini_array,tmax,cmap_path,dt=0.005,dtframe=3,xl
         dot.material_slots[0].material = dmat
     return pln
 
+def plot1D_flux_circle(syst,pars,xini_array,tmax,cmap_path,dt,sfp=[],ufp=[],dtframe=3,method='RK45'):
+    ''' creates an animated plot of array x in the circle
+    '''
+    pltname='cycle'
+    xrange = 2*np.pi
+    rad = 1.0
+    tscale = 2*rad/tmax
+    pln = axes1C(name=pltname,radius=rad)
+    lwidth = rad/1000 
+    for p in sfp:
+        sp = bm.cylinder(pltname + '_sfp', r=lwidth*10, h=lwidth*5, pos=[rad*np.cos(p),rad*np.sin(p),0])
+        sp.parent = pln
+    for p in ufp:
+        up = bm.box(pltname+'_ufp', dims=[lwidth*40,lwidth,lwidth], origin=[-lwidth*20,0,0],pos=[rad*np.cos(p),rad*np.sin(p),0],rot=[0,0,p]) 
+        up.parent = pln
+    # create a dot following circle x is teh angle in radians
+    dot0 = bm.cylinder('dot', r=lwidth*10, h=lwidth*5)
+    for m,xini in enumerate(xini_array):
+        t = np.arange(0, tmax, dt)
+        print(m)
+        # define material for orbit (dim) and point (bright)
+        coord = [1-xini[0]/xrange,0]
+        dmat = mu.colormap_material('dmat'+str(m),coord,cmap_path,emission=True,estrength=10)
+        pmat = mu.colormap_material('pmat'+str(m),coord,cmap_path,emission=True,estrength=0.1)
+        s = solve(syst, t, xini, args=pars,method=method) 
+        t = t[::dtframe]
+        x = s[::dtframe]    
+        frames = np.arange(len(x))
+        if m==0:
+            plx = axes2D(name='plotx',xlim=[-0.1*rad,2.1*rad],ylim=[-1.1*rad,1.1*rad],ticks='auto')
+            plx.location = [0,-1.5*rad,0]
+            plx.rotation_euler = [0,0,-np.pi/2]     
+        pts = [[t[n]*tscale,np.cos(x[n]),0] for n in range(len(x))]           
+        plt = bm.smooth_bezier('plot_'+ str(m),pts,bevel=lwidth)
+        #animate curve
+        bm.animate_curve(plt.data,'pltanim_'+str(m),'bevel_factor_end',[0,len(x)],[0,1])
+        plt.parent = plx    
+        # assigns color
+        plt.data.materials.append(pmat)    
+        dot = bm.duplicate_linked_ob(dot0,'dot_'+str(m))
+        dot.parent = pln
+        fkeys = [[rad*np.cos(x[n]),rad*np.sin(x[n]),0] for n in range(len(x))]
+        bm.animate_curve(dot,pltname+'_dotanim_'+str(m),'location',frames,fkeys)
+        dot.data.materials.append(dmat)
+        dot.material_slots[0].link = 'OBJECT'
+        dot.material_slots[0].material = dmat
+        # and a dot hand
+        dot2 = bm.duplicate_linked_ob(dot0,'dot2_'+str(m))
+        dot2.parent = plx
+        fkeys = [[t[n]*tscale,rad*np.cos(x[n]),0] for n in range(len(x))]
+        bm.animate_curve(dot2,pltname+'_dotanim2_'+str(m),'location',frames,fkeys)        
+        dot2.data.materials.append(dmat)
+        dot2.material_slots[0].link = 'OBJECT'
+        dot2.material_slots[0].material = dmat
+    return pln,plx
+
+def plot1D_bifurcation(syst,par_list,xini_array,tmax,cmap_path,dt,dtframe,xlim,parlim,sp=[],up=[]):
+    xrange = xlim[1]-xlim[0]
+    parange = parlim[1]-parlim[0]
+    pscale = xrange/parange
+    t = np.arange(0, tmax, dt)
+    parcor = np.linspace(parlim[0]*pscale,parlim[1]*pscale,len(par_list))
+    #creates plane x f(x) for plot at origin 
+    pln = axes2D(xlim=[parlim[0]*pscale,parlim[1]*pscale],ylim=xlim,ticks='auto')
+    lwidth = xrange/5000
+    #draw stable and unstable FP curves
+    for c in sp:
+        pts = [[c[n][0]*pscale,c[n][1],0] for n in range(len(c))]
+        spc = bm.smooth_bezier('spc',pts,bevel=lwidth)
+        spc.parent = pln
+        pmat1 = mu.simple_material('pmat1',[1,1,1,1],emission=[0,0,1,1],estrength=1)
+        spc.data.materials.append(pmat1)
+    for c in up:
+        pts = [[c[n][0]*pscale,c[n][1],0] for n in range(len(c))]
+        upc = bm.smooth_bezier('upc',pts,bevel=lwidth)
+        upc.parent = pln
+        pmat2 = mu.simple_material('pmat2',[1,1,1,1],emission=[0.5,0,0,1],estrength=1)
+        upc.data.materials.append(pmat2)    
+    # create a dot model
+    dot0 = bm.cylinder('dot', r=lwidth*10, h=lwidth*20, pos=[0,0,0])    
+    # loop over initial conditions]
+    xmin = min(xini_array)
+    xmax = max(xini_array)
+    xrange = [x1 - x2 for (x1, x2) in zip(xmax, xmin)]
+    for npar,pars in enumerate(par_list):
+        print(pars)
+        xaxis = bm.box('xaxis_'+str(npar), dims=[lwidth,xrange[0],lwidth], origin=[parcor[npar],xlim[0],0])
+        xaxis.parent = pln
+        for m,xini in enumerate(xini_array):
+            # define material for orbit (dim) and point (bright)
+            coord = [1-(xini[0]-xmin[0])/xrange[0],0]
+            dmat = mu.colormap_material('dmat'+str(m),coord,cmap_path,emission=True,estrength=10)
+            s = solve(syst, t, xini, args=pars, method='RK45') 
+            x = s[::dtframe]
+            frames = np.arange(len(x))
+            dot = bm.duplicate_linked_ob(dot0,'dot_'+str(m))
+            dot.parent = pln
+            fkeys = [[parcor[npar],x[n],0] for n in range(len(x))]
+            frames = np.arange(len(x))
+            bm.animate_curve(dot,'dotanim_'+str(m)+'_'+str(npar),'location',frames,fkeys)
+            dot.data.materials.append(dmat)
+            dot.material_slots[0].link = 'OBJECT'
+            dot.material_slots[0].material = dmat
+    return pln
+
 
 def solve_plot_body(syst,pars,xini,tmax,body=None,pv=[0,1],dt=0.005,dtframe=3):
     t = np.arange(0, tmax, dt)
@@ -342,6 +521,33 @@ def plot3D_curves_colors(syst,pars,xini_array,tmax,cmap_path,pv=[0,1,2],dt=0.005
 # Examples dynamical systems
 
 #1D
+
+def saddlenode(t, x, a):
+    return x*x-a
+
+def saddlenode_fp(a):
+    if a > 0 :
+        return [np.sqrt(a),-np.sqrt(a)]
+
+def transcritical(t, x, a):
+    return x*(a-x)
+
+def transcritical_fp(a):
+    if a>0:
+        return [0, a]
+    else:
+        return [a, 0]
+    
+def pitchfork(t, x, a):
+    return x*(a-x*x)
+
+def pitchfork_fp(a):
+    if a>0:
+        return [np.sqrt(a), 0, -np.sqrt(a)]
+    else:
+        return [0]
+        
+    
 def logistic(t, x, R):
     return R*x*(1-x)
 
@@ -349,6 +555,9 @@ def logistic_outbreak(t, x, R, K):
     P = x*x/(1+x*x)
     return R*x*(1-x/K)-P
 
+# circle
+def adler(t, x, w, a):
+    return w-a*np.cos(x)
 
 #2D
 
@@ -382,8 +591,15 @@ def takens(t, x, A, B):
         x[1],
         -A-B*x[0]-x[0]*(x[1]*(x[0]+1)+x[0]*(x[0]-1)),
     ]
-    
 
+# 2D circle
+
+def adler_forced(t, x, w, a, p, w1):
+    return [
+        w-a*np.cos(x[0])+p*np.cos(x[1]),
+        w1,
+    ]
+    
 # 3D
 
 def lorenz(t, x, S, P, B):

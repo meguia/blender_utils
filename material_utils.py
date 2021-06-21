@@ -374,6 +374,17 @@ def emission_material(matName,strength=1.0,baseColor=[1,1,1,1],image=None,ob_coo
         m.link(texture_coordinate,'Generated',emission_image,'Vector')
     return m.mat
 
+def traslucent_material(matName,transmission=1.0,baseColor=[1,1,1,1],ior=1.4,roughness=0):
+    m = Material(matName)
+    #m.make_material(matName)
+    materialOutput = m.nodes['Material Output']
+    PBSDF = m.nodes['Principled BSDF']
+    PBSDF.inputs["Base Color"].default_value = baseColor
+    PBSDF.inputs["Roughness"].default_value = 0.0
+    PBSDF.inputs["Transmission"].default_value = transmission
+    PBSDF.inputs["Transmission Roughness"].default_value = roughness    
+    PBSDF.inputs["IOR"].default_value = ior
+    return m.mat
 
 def texture_environment_material(matName,image,projection='EQUIRECTANGULAR',specular=0,rough=0,metal=0,
                                 ob_coord=None,scale=Vector((1,1,1))):

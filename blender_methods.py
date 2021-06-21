@@ -336,6 +336,29 @@ def mesh_for_circle(name,N,axis,r,offset):
         mesh.from_pydata(ve, [], fa)
     return mesh
 
+def mesh_for_annulus(name,N,axis,r1,r2):
+    """ Returns mesh for a N-segment annulus of external (internal) radius 
+    r1 (r2) with normal pointing along axis
+    """
+    mesh = bpy.data.meshes.get(name)
+    if mesh is None:
+        mesh = bpy.data.meshes.new(name)
+        ve = []
+        for n in range(N):
+            theta = 2*pi*n/N
+            vv = rotate_list([0, r1*cos(theta), r1*sin(theta)],-axis)
+            ve.append(Vector(vv))
+            vv = rotate_list([0, r2*cos(theta), r2*sin(theta)],-axis)
+            ve.append(Vector(vv))
+        fa = []
+        for n in range(N-1):            
+            fa.append((2*n,2*n+1,2*n+3,2*n+2))
+        fa.append((2*(N-1),2*(N-1)+1,1,0))    
+        mesh.from_pydata(ve, [], fa)
+    return mesh
+
+
+
 def mesh_for_plane(name,orient=1):
     """ Returns mesh for a default plane with name and orientation
     """
@@ -555,6 +578,7 @@ def mesh_for_tbeam(name,width,thick,length):
         mesh.update(calc_edges=True)
     return mesh
 
+
 def mesh_for_polygon(name,vertlist):
     """ Returns mesh for polygon defined by the list of vertices vertlist
     """
@@ -597,6 +621,35 @@ def mesh_for_icosphere(name, s = 1, subdiv = 1):
             fa = faces_subdiv    
         mesh.from_pydata(ve, [], fa)
     return mesh    
+
+def mesh_for_torus(name, r1, r2, n1, n2):
+    """ Return mesh for torus of major radius r1 and minor radius r2 with n1 major segments
+    and n2 minor segments centered at origin
+    """
+    mesh = bpy.data.meshes.get(name)
+    if mesh is None:
+        mesh = bpy.data.meshes.new(name)
+        ve = []
+        for m1 in range(n1):
+            # big circle
+            a1 = 2*m1*pi/n1
+            r0 = Vector((r1*cos(a1),r1*sin(a1),0))
+            for m2 in range(n2):
+                a2 = 2*m2*pi/n2
+                ve.append(r0 + Vector((r2*cos(a1)*cos(a2),r2*sin(a1)*cos(a2),r2*sin(a2))))     
+        fa = []
+        for m1 in range(n1-1):
+            for m2 in range(n2-1):
+                m = m1*n2+m2
+                fa.append((m,m+n2,m+n2+1,m+1))
+            fa.append((m1*n2+n2-1,m1*n2+2*n2-1,m1*n2+n2,m1*n2))    
+        for m2 in range(n2-1):
+            m = (n1-1)*n2+m2
+            fa.append((m,m2,m2+1,m+1))
+        fa.append(((n1-1)*n2+n2-1,n2-1,0,(n1-1)*n2))        
+        mesh.from_pydata(ve, [], fa)
+    return mesh    
+        
         
 def mesh_for_frame(name,dims_hole,dims_frame):
     """ Return mesh for a frame enclosing a rectangular hole of dimension dims_hole
@@ -713,7 +766,7 @@ def smooth_bezier(name, pts, rhandle = 'auto',bevel=0, resolution=12,alpha=0.2):
     bevel option can make the curve solid, and resolution is adjusted for smoothing
     """
     np = len(pts)
-    if rhandle is 'auto':
+    if rhandle == 'auto':
         rhandle = [Vector(pts[n])+alpha*(Vector(pts[n+1])-Vector(pts[n-1])) for n in range(1,np-1)]
         rhandle.insert(0, Vector(pts[0])+alpha*(Vector(pts[1])-Vector(pts[0])))
         rhandle.append(Vector(pts[-1])+alpha*(Vector(pts[-1])-Vector(pts[-2])))
@@ -751,6 +804,16 @@ def circle(name,N=32,axis=2,r=1.0,pos=[0,0,0],offset=[0,0,0]):
     ob.location = pos
     return ob
 
+def annulus(name,N=32,axis=2,r1=1.0,r2=0.5,pos=[0,0,0]):
+    """ returns a annulus of raddi r1,r2 and normal along axis,
+    at location pos and origin offset
+    """
+    me = mesh_for_annulus(name,N,axis,r1,r2)
+    ob = bpy.data.objects.new(me.name,me)
+    ob.location = pos
+    return ob
+    
+    
 def rectangle(name, lx, ly, origin=[0,0], pos=[0,0,0]):
     """ returns a plane rectangle of dimensions lx by ly with origin at vertex
     """
@@ -773,7 +836,7 @@ def cube(name, mats = None, pos = [0,0,0],zorigin=0):
         ob.data.materials.append(mats)
     return ob
 
-def box(name, dims=[1,1,0.1], mats = None, pos = [0,0,0], origin = [0,0,0], top=True, bottom=True):
+def box(name, dims=[1,1,0.1], mats = None, pos = [0,0,0], origin = [0,0,0], rot=[0,0,0], top=True, bottom=True):
     """ returns a rectangular box of dimensions dims = [length(x), width(y), and height(z)]
     with origin at the base vertex and material mats
     """
@@ -782,6 +845,7 @@ def box(name, dims=[1,1,0.1], mats = None, pos = [0,0,0], origin = [0,0,0], top=
     me = mesh_for_box(name,[x0,x0+length],[y0,y0+width],[z0,z0+height],top,bottom)
     ob = bpy.data.objects.new(me.name,me)
     ob.location = pos
+    ob.rotation_euler = rot
     if mats is not None:
         ob.data.materials.append(mats)
     return ob    
@@ -917,6 +981,20 @@ def icosphere(name, mats=None, pos=[0,0,0],r = 1,sub = 2, smooth = True):
     located at pos and with number ob subdivisions subs
     """
     me = mesh_for_icosphere(name,r,sub)
+    for face in me.polygons:
+        face.use_smooth = smooth
+    ob = bpy.data.objects.new(me.name,me)
+    ob.location = pos
+    if mats is not None:
+        ob.data.materials.append(mats)
+    print(ob.name)
+    return ob
+
+def torus(name, r1, r2, n1=32, n2=16, mats=None, pos=[0,0,0], smooth=True):
+    """ return torus object with radii r1 and r2, segments n1 and n2 
+    and materials mats, located at pos
+    """
+    me = mesh_for_torus(name, r1=r1, r2=r2, n1=n1, n2=n2)
     for face in me.polygons:
         face.use_smooth = smooth
     ob = bpy.data.objects.new(me.name,me)
