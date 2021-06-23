@@ -3,6 +3,7 @@ import blender_methods as bm
 import material_utils as mu
 from scipy.integrate import solve_ivp
 from scipy.signal import find_peaks
+from scipy.optimize import fsolve
 from scipy.fft import fft
 import importlib as imp
 
@@ -424,6 +425,68 @@ def plot1D_bifurcation(syst,par_list,xini_array,tmax,cmap_path,dt,dtframe,xlim,p
             dot.material_slots[0].material = dmat
     return pln
 
+def plot1D_bifurcation_codimension2(syst,par_list,xini_array,tmax,cmap_path,dt,dtframe,xlim,parlim,sp=[],up=[]):
+    """par_list is a list of list of tuples, for example for codim 2 bifurcations [[(a1,b1,c),(a2,b1,c)],[(a1,b2,c),(a2,b2,c)]]
+    sp and up are the stable and unstable manifolds are 3D lists: an array of manifolds written as an array of curves (arrays of points)
+    the 1D phase space is oriented along the z axis
+    parlim is [[amin,amax],[bmin,bmax]]
+    """
+    xrange = xlim[1]-xlim[0]
+    pscale1 = xrange/(parlim[0][1]-parlim[0][0])
+    pscale2 = xrange/(parlim[1][1]-parlim[1][0])
+    t = np.arange(0, tmax, dt)
+    parcor1 = np.linspace(parlim[0][0]*pscale1,parlim[0][1]*pscale1,len(par_list))
+    parcor2 = np.linspace(parlim[1][0]*pscale2,parlim[0][1]*pscale2,len(par_list[0]))
+    #creates plane x f(x) for plot at origin 
+    pln = axes2D(xlim=[parlim[0][0]*pscale1,parlim[0][1]*pscale1],ylim=[parlim[1][0]*pscale2,parlim[1][1]*pscale2],ticks='auto')
+    lwidth = xrange/5000
+    #draw stable and unstable FP curves
+    # loop sobre manifolds
+    for man in sp:
+        # loop sobre curvas
+        for c in man: 
+            if len(c) > 1:
+                pts = [[c[n][0]*pscale1,c[n][1]*pscale2,c[n][2]] for n in range(len(c))]
+                spc = bm.smooth_bezier('spc',pts,bevel=lwidth)
+                spc.parent = pln
+                pmat1 = mu.simple_material('pmat1',[1,1,1,1],emission=[0,0,1,1],estrength=2)
+                spc.data.materials.append(pmat1)
+    for man in up:
+        for c in man:
+            if len(c)>1:
+                pts = [[c[n][0]*pscale1,c[n][1]*pscale2,c[n][2]] for n in range(len(c))]
+                upc = bm.smooth_bezier('upc',pts,bevel=2*lwidth)
+                upc.parent = pln
+                pmat2 = mu.simple_material('pmat2',[1,1,1,1],emission=[0.5,0,0,1],estrength=1)
+                upc.data.materials.append(pmat2)    
+            # create a dot model
+    dot0 = bm.icosphere('dot', r=lwidth*10, sub = 1) 
+    # loop over initial conditions]
+    xmin = min(xini_array)
+    xmax = max(xini_array)
+    xrange = [x1 - x2 for (x1, x2) in zip(xmax, xmin)]
+    for npar1,subparlist in enumerate(par_list):
+        for npar2,pars in enumerate(subparlist):
+            print(pars)
+            xaxis = bm.box('xaxis_'+str(npar1)+'_'+str(npar2), dims=[lwidth,lwidth,xrange[0]], origin=[parcor1[npar1],parcor2[npar2],xlim[0]])
+            xaxis.parent = pln
+            for m,xini in enumerate(xini_array):
+                # define material for orbit (dim) and point (bright)
+                coord = [1-(xini[0]-xmin[0])/xrange[0],0]
+                dmat = mu.colormap_material('dmat'+str(m),coord,cmap_path,emission=True,estrength=10)
+                s = solve(syst, t, xini, args=pars, method='RK45') 
+                x = s[::dtframe]
+                frames = np.arange(len(x))
+                dot = bm.duplicate_linked_ob(dot0,'dot_'+str(m))
+                dot.parent = pln
+                fkeys = [[parcor1[npar1],parcor2[npar2],x[n]] for n in range(len(x))]
+                frames = np.arange(len(x))
+                bm.animate_curve(dot,'dotanim_'+str(m)+'_'+str(npar1)+'_'+str(npar2),'location',frames,fkeys)
+                dot.data.materials.append(dmat)
+                dot.material_slots[0].link = 'OBJECT'
+                dot.material_slots[0].material = dmat
+    return pln
+
 
 def solve_plot_body(syst,pars,xini,tmax,body=None,pv=[0,1],dt=0.005,dtframe=3):
     t = np.arange(0, tmax, dt)
@@ -520,10 +583,10 @@ def plot3D_curves_colors(syst,pars,xini_array,tmax,cmap_path,pv=[0,1,2],dt=0.005
     
 # Examples dynamical systems
 
-#1D
+#1D Bifurcations
 
 def saddlenode(t, x, a):
-    return x*x-a
+    return x*x+a
 
 def saddlenode_fp(a):
     if a > 0 :
@@ -546,7 +609,20 @@ def pitchfork_fp(a):
         return [np.sqrt(a), 0, -np.sqrt(a)]
     else:
         return [0]
+
+def cusp(t,x,r,h):        
+    return h + x*(r-x*x)
+
+
+def cusp_fp(x,r,hrange):
+    h = x*(x*x-r)
+    if h<hrange[1] and h>hrange[0]:
+        return h
+    
         
+    
+    
+# 1D
     
 def logistic(t, x, R):
     return R*x*(1-x)
