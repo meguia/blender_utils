@@ -142,3 +142,45 @@ def uv_planks(mesh, scale=None, withLM=True,  rot90 = False, name1='UVMap', name
         assign_uv(bm,uvs,uv_idcs,uv_2,s)
     bm.to_mesh(mesh)
     bm.free()         
+
+
+def uv_board_hbands(mesh, front=0, scale=None, withLM=True,  rot90=False, name1='UVMap', name2='LM'):
+    # remove all previous layers
+    while mesh.uv_layers:
+        mesh.uv_layers.remove(mesh.uv_layers[0])
+    mesh.uv_layers.new(name=name1)
+    if withLM:
+        mesh.uv_layers.new(name=name2)
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    uv_1 = bm.loops.layers.uv[name1]
+    # load geometrical data from custom properties
+    xs = mesh['xs']
+    zs = mesh['zs']
+    ys = mesh['ys']
+    holem = mesh['holem']
+    (l,h,e) = [xs[-1],zs[-1],max(ys)]
+    if scale is None:
+        scale = h
+    s = max(l+2*e,2*h+2*e)
+    # mesh loops
+    #(0,2,3,1),(1,3,7,5),(2,0,4,6),(4,5,7,6),(0,1,5,4),(3,2,6,7)
+    uvs = [(e,e), (l+e,e), (e,0), (l+e,0), (e,h+e), (l+e,h+e), (e,h+2*e), (l+e,h+2*e),
+            (0,e), (l+2*e,e), (0,h+e), (l+2*e,h+e), (e,2*h+2*e), (l+e,2*h+2*e)]
+    if rot90:
+        uvs =  list(map(lambda s: (s[1],s[0]), uvs))
+            
+    if front==1: #Top
+        uv_idcs = [(4,0,1,5),(5,1,9,11),(0,4,10,8),(6,7,13,12),(4,5,7,6),(1,0,2,3)]
+    elif front==2: #Down
+        uv_idcs = [(12,6,7,13),(9,11,5,1),(10,8,0,4),(0,1,5,4),(2,3,1,0),(7,6,4,5)]
+    else:
+        # zero default lateral
+        uv_idcs = [(0,2,3,1),(1,9,11,5),(8,0,4,10),(4,5,7,6),(0,1,5,4),(13,12,6,7)]
+
+    assign_uv(bm,uvs,uv_idcs,uv_1,scale,(-e,-e))
+    if withLM:
+        uv_2 = bm.loops.layers.uv[name2]
+        assign_uv(bm,uvs,uv_idcs,uv_2,s)
+    bm.to_mesh(mesh)
+    bm.free()
