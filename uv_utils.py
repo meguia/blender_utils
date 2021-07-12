@@ -1,5 +1,62 @@
 import bmesh
 
+#Utilities for printing polygons vertices an loop indices
+
+def meshinfo(mesh):
+    print('Mesh '+ mesh.name + ':')
+    print(str(len(mesh.vertices)) + ' vertices')
+    print(str(len(mesh.edges)) + ' edges')
+    print(str(len(mesh.polygons)) + ' faces')
+    print(str(len(mesh.loops)) + ' loops')
+    print('Faces: ')
+    for p in mesh.polygons:
+        fstr = str(tuple(p.vertices)) + ' Co: '
+        for nv in p.vertices:
+            fstr += '|'
+            fstr += ','.join(f'{x:.2f}' for x in mesh.vertices[nv].co)    
+        print(fstr)
+    for key, value in dict(mesh).items():
+        fstr = 'Property ' + key + ' : '
+        tv = type(value)
+        if (tv == float) or (tv == int):
+            fstr += str(value)
+        else:    
+            if hasattr(value,'to_list'):
+                value = value.to_list()                
+            for v1 in value:
+                tv1 = type(v1)
+                if (tv1 == float) or (tv1 == int):
+                    fstr += str(v1) + ' '
+                else: 
+                    if hasattr(v1,'to_list'):
+                        v1 = v1.to_list()                                 
+                    for v2 in v1:
+                        fstr += str(v2) + ','
+        print(fstr)                
+                                            
+    
+    
+def bmeshinfo(bm):
+    print('BMesh :')
+    print(str(len(bm.verts)) + ' vertices')
+    print(str(len(bm.edges)) + ' edges')
+    print(str(len(bm.faces)) + ' faces')
+    vol = bm.calc_volume()
+    print(f'Volume: {vol:.2f}')
+    a = 0
+    for f in bm.faces:
+        a += f.calc_area()
+    print(f'Area: {a:.2f}')
+    print('Faces: ')
+    for f in bm.faces:
+        fstr = str(tuple(v.index for v in f.verts))
+        a = f.calc_area()
+        fstr += f' Area: {a:.2f} Co:'
+        for v in f.verts:
+            fstr += '|'
+            fstr += ','.join(f'{x:.2f}' for x in v.co)
+        print(fstr)        
+
 def assign_uv(bm,uvs,uv_idcs,uv,scale=1.0,move=(0,0)):
     
     for f in bm.faces:
@@ -155,32 +212,95 @@ def uv_board_hbands(mesh, front=0, scale=None, withLM=True,  rot90=False, name1=
     bm.from_mesh(mesh)
     uv_1 = bm.loops.layers.uv[name1]
     # load geometrical data from custom properties
-    xs = mesh['xs']
-    zs = mesh['zs']
-    ys = mesh['ys']
-    holem = mesh['holem']
-    (l,h,e) = [xs[-1],zs[-1],max(ys)]
+    l = mesh['length']
+    w = mesh['width']
+    h = mesh['height']
+    ot = mesh['ot'].to_list()
     if scale is None:
         scale = h
-    s = max(l+2*e,2*h+2*e)
-    # mesh loops
-    #(0,2,3,1),(1,3,7,5),(2,0,4,6),(4,5,7,6),(0,1,5,4),(3,2,6,7)
-    uvs = [(e,e), (l+e,e), (e,0), (l+e,0), (e,h+e), (l+e,h+e), (e,h+2*e), (l+e,h+2*e),
-            (0,e), (l+2*e,e), (0,h+e), (l+2*e,h+e), (e,2*h+2*e), (l+e,2*h+2*e)]
+    s = max(l+2*w,2*h+2*w)
+    # loop over faces and add vertices and faces in the UV map. 
+    # front, left down starting at (0,0) and back,right,up starting at (0,h)
+    # front + left use the original vertices
+    # DURL use 2 additional vertices each, so the total number of vertices is
+    numv = len(mesh.vertices) + 2*len([x for x in ot if x>1])
+    uvs = [()]*numv
+    uv_idcs = [()]*len(mesh.polygons)
+    # index for additional vertices check FBDURL
+    jdx = len(mesh.vertices)
+    for n, p in enumerate(mesh.polygons):
+        if ot[n]==0:
+            # Front: same indices same xz > xy coordinates
+            uv_idcs[n] = tuple(p.vertices)
+            # todo: add redundancy check
+            for nv in p.vertices:
+                co = mesh.vertices[nv].co
+                uvs[nv] = (co[0],co[2])
+        elif ot[n]==1:
+            # Back: same indices and x+len, z > x, y coordinates
+            uv_idcs[n] = tuple(p.vertices)
+            # todo: add redundancy check
+            for nv in p.vertices:
+                co = mesh.vertices[nv].co
+                uvs[nv] = (co[0],co[2]+h)    
+        elif ot[n]==2:
+            # Down: check vertices with positive y coordinates (back) and add as new vertices
+            uvidcstemp = []
+            for nv in p.vertices:
+                co = mesh.vertices[nv].co
+                if co[1]>0:
+                    # new vertex
+                    uvs[jdx] = (co[0],co[2]-w)
+                    uvidcstemp.append(jdx)
+                    jdx += 1
+                else:
+                    uvidcstemp.append(nv)
+            uv_idcs[n] = tuple(uvidcstemp)
+        elif ot[n]==3:
+            # Up: check vertices with negative y coordinates (front) and add as new vertices
+            uvidcstemp = []
+            for nv in p.vertices:
+                co = mesh.vertices[nv].co
+                if co[1]<0:
+                    # new vertex
+                    uvs[jdx] = (co[0],co[2]+h+w)
+                    uvidcstemp.append(jdx)
+                    jdx += 1
+                else:
+                    uvidcstemp.append(nv)
+            uv_idcs[n] = tuple(uvidcstemp)        
+        elif ot[n]==4:
+            # Right: check vertices with negative y coordinates (front) and add as new vertices
+            uvidcstemp = []
+            for nv in p.vertices:
+                co = mesh.vertices[nv].co
+                if co[1]<0:
+                    # new vertex
+                    uvs[jdx] = (co[0]+w,co[2]+h)
+                    uvidcstemp.append(jdx)
+                    jdx += 1
+                else:
+                    uvidcstemp.append(nv)
+            uv_idcs[n] = tuple(uvidcstemp)
+        elif ot[n]==5:
+            # Left: check vertices with positive y coordinates (back) and add as new vertices
+            uvidcstemp = []
+            for nv in p.vertices:
+                co = mesh.vertices[nv].co
+                if co[1]>0:
+                    # new vertex
+                    uvs[jdx] = (co[0]-w,co[2])
+                    uvidcstemp.append(jdx)
+                    jdx += 1
+                else:
+                    uvidcstemp.append(nv)
+            uv_idcs[n] = tuple(uvidcstemp)            
     if rot90:
         uvs =  list(map(lambda s: (s[1],s[0]), uvs))
-            
-    if front==1: #Top
-        uv_idcs = [(4,0,1,5),(5,1,9,11),(0,4,10,8),(6,7,13,12),(4,5,7,6),(1,0,2,3)]
-    elif front==2: #Down
-        uv_idcs = [(12,6,7,13),(9,11,5,1),(10,8,0,4),(0,1,5,4),(2,3,1,0),(7,6,4,5)]
-    else:
-        # zero default lateral
-        uv_idcs = [(0,2,3,1),(1,9,11,5),(8,0,4,10),(4,5,7,6),(0,1,5,4),(13,12,6,7)]
-
-    assign_uv(bm,uvs,uv_idcs,uv_1,scale,(-e,-e))
+    assign_uv(bm,uvs,uv_idcs,uv_1,scale,(l/2,0))
     if withLM:
         uv_2 = bm.loops.layers.uv[name2]
-        assign_uv(bm,uvs,uv_idcs,uv_2,s)
+        assign_uv(bm,uvs,uv_idcs,uv_2,s,(l/2+w,w))
     bm.to_mesh(mesh)
     bm.free()
+    return uvs,uv_idcs
