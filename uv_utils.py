@@ -58,7 +58,13 @@ def bmeshinfo(bm):
         print(fstr)        
 
 def assign_uv(bm,uvs,uv_idcs,uv,scale=1.0,move=(0,0)):
-    
+    '''
+    bm bmesh
+    uvs uv vertex coordinates
+    uv_idcs: uv loops
+    uv layer: Exposes a single custom data layer, their main purpose is for use 
+    as item accessors to custom-data when used with vert/edge/face/loop data.
+    '''
     for f in bm.faces:
         idx = f.index
         uv_tup = uv_idcs[idx]
@@ -69,6 +75,25 @@ def assign_uv(bm,uvs,uv_idcs,uv,scale=1.0,move=(0,0)):
             luv1.uv = ((uvs[uv_idx][0]+move[0])/scale,(uvs[uv_idx][1]+move[1])/scale)
             li = li+1
     return
+    
+def stretch_uv(mesh, uvname, axis=0, threshold=0, increment=0):
+    '''
+    stretch uvlayer with name uvname along axis for all vertices with 
+    axis coordinate greater than threshold by an amount increment
+    '''
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    uv = bm.loops.layers.uv[uvname]
+    for f in bm.faces:
+        for g in f.loops:
+            luv = g[uv]
+            ve = luv.uv
+            if ve[axis] > threshold:
+                ve[axis] += increment
+    bm.to_mesh(mesh)
+    bm.free()           
+    
+
         
 def uv_board(mesh, dims, front=0, scale=None, withLM=True,  rot90 = False, name1='UVMap', name2='LM'):
     

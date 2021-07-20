@@ -687,7 +687,18 @@ def mesh_for_grid(name,Nx,Ny,dx,dy):
         mesh.from_pydata(ve, [], fa)
         mesh.update(calc_edges=True)
     return mesh        
-                
+
+
+# ==============================================================================
+# MESH MODIFICATIONS
+
+def linear_stretch(me, axis=0, threshold=1.0, increment=0.0):
+    """ stretch mesh me along axis. All vertices from mesh along axis
+    with coordinates greater than threshold are increased by value 'increment'
+    """
+    for v in me.vertices:
+        if v.co[axis]>threshold:
+            v.co[axis] += increment
         
 def set_smooth(data):
     """ sets shading smooth for all faces
