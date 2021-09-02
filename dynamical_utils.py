@@ -7,6 +7,7 @@ from scipy.optimize import fsolve
 from scipy.fft import fft
 import importlib as imp
 
+imp.reload(bm)
 
 def solve(func,t,x0,method='DOP853',args=None):
     dt = np.abs(t[1]-t[0])
@@ -19,6 +20,29 @@ def findperiod(t,x):
     peaks, _ = find_peaks(x)
     per = np.diff(t[peaks])
     return np.mean(per)
+
+def length_xycurve(x,y):
+    ''' find legth of planar curve given by arrays x,y
+    '''
+    s = 0
+    for n in range(len(x)-1):
+        dx = x[n+1]-x[n]
+        dy = y[n+1]-y[n]
+        ds = np.sqrt(dx*dx+dy*dy)
+        s += ds
+    return s    
+
+def length_xyzcurve(x,y,z):
+    ''' find legth of planar curve given by arrays x,y
+    '''
+    s = 0
+    for n in range(len(x)-1):
+        dx = x[n+1]-x[n]
+        dy = y[n+1]-y[n]
+        dz = z[n+1]-z[n]
+        ds = np.sqrt(dx*dx+dy*dy+dz*dz)
+        s += ds
+    return s       
 
 def axes2D(name='canvas',xlim=[-1,1],ylim=[-1,1],ticks='auto'):
     #creates plane xy for plot at origin 
@@ -89,6 +113,8 @@ def plot2D(x,y,xlim='auto',ylim='auto',type='line',ticks='auto', wdot=False):
     plt = bm.smooth_bezier('plot',pts,bevel=lwidth)
     plt.parent = pln
     return pln
+
+
     
 def plot2D_animated(x,y,t,pltname='plotxy',xlim='auto',ylim='auto',type='line',ticks='auto'):
     ''' creates an animated plot of array y vs array x parametrized with array t in frames 
@@ -208,6 +234,45 @@ def solve_plot_2D(syst,pars,xini,tmax,pv=[0,1],dt=0.005,dtframe=3,xyt=False):
     else:    
         return pln
 
+def nullcline_regions(syst,pars,delta,xlim=[-1,1],ylim=[-1,1]):
+    '''
+    
+    '''
+
+def plot2D_flow(syst,pars,xini_array,tmax,pv=[0,1],dt=0.005,dtframe=3,xlim=[-1,1],ylim=[-1,1],arrow_scale=10,count=20):
+    '''creates a static plot of the vector field as a flow with arrows indicating the time evolution
+    along the orbits
+    '''
+    t = np.arange(0, tmax, dt)
+    #creates plane xy for plot at origin 
+    pln = axes2D(xlim=xlim,ylim=ylim,ticks='auto')
+    xrange = xlim[1]-xlim[0]
+    yrange = ylim[1]-ylim[0]    
+    l = min(xrange,yrange)
+    lwidth = l/10000 
+    # create an arrow model
+    al = lwidth*arrow_scale
+    arr0 = bm.arrow('arrow', al, al*1.5, al, lwidth,axis='X')
+    bm.cylinder('dot', r=lwidth*10, h=lwidth*5, pos=[0,0,0])    
+    # Nullclines!
+    for m,xini in enumerate(xini_array):
+        print(m)
+        s = solve(syst, t, xini, args=pars, method='RK45') 
+        x = s[::dtframe,pv[0]]
+        y = s[::dtframe,pv[1]]
+        s = length_xycurve(x,y)
+        ds = s/count
+        pts = [[x[n],y[n],0] for n in range(len(x))]
+        plt = bm.smooth_bezier('plot_'+ str(m),pts,bevel=lwidth)
+        arr = bm.duplicate_ob(arr0,'arr_'+str(m))
+        a1, c1 = bm.array_curve(arr,plt,'arrf_'+str(m),count=count,axis='POS_X',off_constant=[ds,0,0])
+        #animate curve
+        # arrows
+        arr.parent = pln
+        plt.parent = pln    
+    return pln
+
+
 def plot2D_flux(syst,pars,xini_array,tmax,pv=[0,1],dt=0.005,dtframe=3,xlim=[-1,1],ylim=[-1,1]):
     t = np.arange(0, tmax, dt)
     #creates plane xy for plot at origin 
@@ -254,7 +319,7 @@ def plot2D_flux_colors(syst,pars,xini_array,tmax,cmap_path,pv=[0,1],dt=0.005,dtf
         # define material for orbit (dim) and point (bright)
         coord = [(xini[0]-xlim[0])/xrange,(xini[1]-ylim[0])/yrange]
         pmat = mu.colormap_material('pmat'+str(m),coord,cmap_path,emission=True,estrength=0.1)
-        dmat = mu.colormap_material('dmat'+str(m),coord,cmap_path,emission=True,estrength=100)
+        dmat = mu.colormap_material('dmat'+str(m),coord,cmap_path,emission=True,estrength=10)
         s = solve(syst, t, xini, args=pars, method='RK45') 
         x = s[::dtframe,pv[0]]
         y = s[::dtframe,pv[1]]
@@ -635,6 +700,16 @@ def logistic_outbreak(t, x, R, K):
 def adler(t, x, w, a):
     return w-a*np.cos(x)
 
+
+# circle forced
+
+def adler_forced(t, x, w, a, p, w1):
+    return [
+        w-a*np.cos(x[0])+p*np.cos(x[1]),
+        w1,
+    ]
+
+
 #2D
 
 def osc_harm(t, x, W,C):
@@ -661,6 +736,18 @@ def van_der_pol(t, x, W, C):
         -W*x[0]-C*x[1]*(x[0]*x[0]-1),
     ]        
         
+def van_der_pol_hopf(t,x,W,C):
+    return [
+        x[1],
+        -W*x[0]-x[1]*(x[0]*x[0]-C),
+    ]
+    
+    
+def lienard(t,x,C):
+    return [
+        C*(x[0]*(1-x[0]*x[0]/3)-x[1]),
+        x[0]/C,
+    ]    
 
 def takens(t, x, A, B):
     return [
@@ -668,13 +755,37 @@ def takens(t, x, A, B):
         -A-B*x[0]-x[0]*(x[1]*(x[0]+1)+x[0]*(x[0]-1)),
     ]
 
-# 2D circle
-
-def adler_forced(t, x, w, a, p, w1):
+def duffing(t, x, B, C):
     return [
-        w-a*np.cos(x[0])+p*np.cos(x[1]),
-        w1,
+        x[1],
+        -C*x[1]+x[0]*(B-x[0]*x[0]),
     ]
+
+def bow(t, x, C, V):
+    return [
+        x[1],
+        -x*friction(x[1]-V)-x[0],
+    ]    
+
+def bow_trans(t, x, C, V, Vt):
+    return [
+        x[1],
+        -C*friction(x[1]-x[2])-x[0],
+        -Vt*(x[2]-V),
+    ]
+    
+def friction(x):
+    return np.arctan(25*x)*np.exp(-2*np.abs(x))
+
+# 2D forced
+
+def duffing_forced(t, x, B, C, A, w):
+    return [
+        x[1],
+        -C*x[1]+x[0]*(B-x[0]*x[0])+A*np.cos(x[2]),
+        w, 
+    ]
+
     
 # 3D
 

@@ -78,19 +78,20 @@ def linspace(x1,x2,n,fromzero=True):
             yield x1 + h * i
     return
 
-def middle_point(ve, p1, p2, s = 1):
+def middle_point(ve, p1, p2, s=1, middle_point_cache={}):
     """ Find a middle point and project to the unit sphere 
     """ 
     smaller_index = min(p1, p2)
     greater_index = max(p1, p2)
-    #key = '{0}-{1}'.format(smaller_index, greater_index)
-    #if key in middle_point_cache:
-    #    return middle_point_cache[key]
+    key = '{0}-{1}'.format(smaller_index, greater_index)
+    if key in middle_point_cache:
+        return middle_point_cache[key]
     v1 = ve[p1]
     v2 = ve[p2]
     middle = [sum(i)/2 for i in zip(v1, v2)]
-    ve.append(vertex(*middle,s))
+    ve.append(vertex(*middle,scale=s))
     index = len(ve) - 1
+    middle_point_cache[key] = index
     return index    
 
 def test_dim(x, dim=0):
@@ -405,6 +406,30 @@ def mesh_for_cylinder(name,nfaces, r=1.0, h=1.0, zoffset=0):
         mesh.from_pydata(ve, [], fa)
     return mesh     
 
+def mesh_for_triangle(name,vertices,thick):
+    """ Return mesh for triangle given three vertices and thickness
+    """
+    mesh = bpy.data.meshes.get(name)
+    if mesh is None:
+        mesh = bpy.data.meshes.new(name)
+        ve = vertices
+        ve.extend([v + Vector((0,0,thick)) for v in ve])    
+        fa = [(0,1,2),(0,2,5,3),(2,1,4,5),(1,0,3,4),(3,5,4)]
+        mesh.from_pydata(ve, [], fa)
+    return mesh
+
+def mesh_for_arrow(name,vertices,thick):
+    """ Return mesh for arrow given three vertices and thickness
+    """
+    mesh = bpy.data.meshes.get(name)
+    if mesh is None:
+        mesh = bpy.data.meshes.new(name)
+        ve = vertices
+        ve.extend([v + Vector((0,0,thick)) for v in ve])
+        fa = [(0,1,2,3),(0,3,7,4),(3,2,6,7),(2,1,5,6),(1,0,4,5),(4,7,6,5)]
+        mesh.from_pydata(ve, [], fa)
+    return mesh
+
 
 def mesh_for_tube(name, nfaces, rlist=1.0, hlist=1.0, top=True, bot=True, axis=2):
     """ Returns mesh for a tube mesh with name, n lateral faces, heights h 
@@ -595,12 +620,14 @@ def mesh_for_polygon(name,vertlist):
 
 def mesh_for_icosphere(name, s = 1, subdiv = 1):
     """ Returns mesh for icosphere of size s and number of subdivisions subdiv
+        Golden Ratio version
     """
     mesh = bpy.data.meshes.get(name)
     if mesh is None:
         mesh = bpy.data.meshes.new(name)
         # Golden ratio 
         PHI = (1 + sqrt(5)) / 2
+        cache = {}
         ve = [ vertex(-1, PHI, 0, s), vertex( 1, PHI, 0, s), vertex(-1, -PHI, 0, s), vertex( 1, -PHI, 0, s), 
             vertex(0, -1, PHI, s), vertex(0, 1, PHI, s), vertex(0, -1, -PHI, s), vertex(0, 1, -PHI, s), 
             vertex( PHI, 0, -1, s), vertex( PHI, 0, 1, s), vertex(-PHI, 0, -1, s), vertex(-PHI, 0, 1, s), ]
@@ -611,9 +638,9 @@ def mesh_for_icosphere(name, s = 1, subdiv = 1):
         for i in range(subdiv):
             faces_subdiv = []
             for tri in fa: 
-                v1 = middle_point(ve,tri[0], tri[1], s) 
-                v2 = middle_point(ve,tri[1], tri[2], s) 
-                v3 = middle_point(ve,tri[2], tri[0], s) 
+                v1 = middle_point(ve,tri[0], tri[1], s, cache) 
+                v2 = middle_point(ve,tri[1], tri[2], s, cache) 
+                v3 = middle_point(ve,tri[2], tri[0], s, cache) 
                 faces_subdiv.append([tri[0], v1, v3]) 
                 faces_subdiv.append([tri[1], v2, v1]) 
                 faces_subdiv.append([tri[2], v3, v2]) 
@@ -621,6 +648,8 @@ def mesh_for_icosphere(name, s = 1, subdiv = 1):
             fa = faces_subdiv    
         mesh.from_pydata(ve, [], fa)
     return mesh    
+
+
 
 def mesh_for_torus(name, r1, r2, n1, n2):
     """ Return mesh for torus of major radius r1 and minor radius r2 with n1 major segments
@@ -835,6 +864,32 @@ def rectangle(name, lx, ly, origin=[0,0], pos=[0,0,0]):
     ob.location = pos
     return ob
 
+def triangle(name, b, h, t, axis='Y', origin=[0,0], pos=[0,0,0]):
+    """ returns an isoceles triangle with base and height, and thickness. The origin is at relative to centroid
+    """
+    (x0,y0) = origin
+    if axis=='Y':
+        ve = [Vector((x0-b/2,y0-h/3,0)), Vector((x0+b/2,y0-h/3,0)), Vector((x0,y0+2*h/3,0))]
+    else:
+        ve = [Vector((x0-h/3,y0-b/2,0)), Vector((x0-h/3,y0+b/2,0)), Vector((x0+2*h/3,y0,0))]    
+    me = mesh_for_triangle(name,ve,t)
+    ob = bpy.data.objects.new(me.name,me)
+    ob.location = pos
+    return ob
+
+def arrow(name, b, h, d, t, axis='Y', origin=[0,0], pos=[0,0,0]):
+    """ returns an isoceles arrow with base b, height h, thickness h and arrow depth d. 
+    The origin is at relative to centroid of the triangle
+    """
+    (x0,y0) = origin
+    if axis=='Y':
+        ve = [Vector((x0-b/2,y0-h/3,0)), Vector((x0,y0-h/3+d,0)), Vector((x0+b/2,y0-h/3,0)), Vector((x0,y0+2*h/3,0))]
+    else:
+        ve = [Vector((x0-h/3,y0-b/2,0)), Vector((x0-h/3+d,y0,0)), Vector((x0-h/3,y0+b/2,0)), Vector((x0+2*h/3,y0,0))]    
+    me = mesh_for_arrow(name,ve,t)
+    ob = bpy.data.objects.new(me.name,me)
+    ob.location = pos
+    return ob
 
 
 def cube(name, mats = None, pos = [0,0,0],zorigin=0): 
@@ -1119,6 +1174,24 @@ def arraymod(ob,name='A1',count=2,off_relative=None,off_constant=None,obj2=None)
         a1.offset_object = obj2
     return a1    
 
+def array_curve(ob,crv,name,count=3,axis='POS_X',off_relative=None,off_constant=None):
+    """ returns an array and a curve modifier for object ob, the array is made
+        along the curve crv with aligned axis
+    """
+    a1 = ob.modifiers.new(name,'ARRAY')
+    a1.count = count
+    if off_constant is not None:
+        a1.use_relative_offset = False
+        a1.use_constant_offset = True
+        a1.constant_offset_displace = off_constant
+    if off_relative is not None:    
+        a1.use_relative_offset = True
+        a1.relative_offset_displace = off_relative
+    c1 = ob.modifiers.new(name+'_curve','CURVE')
+    c1.object = crv
+    c1.deform_axis = axis
+    return a1, c1        
+
 def tile_fill(name,dx,dy,Lx,Ly,offset=1):
     """
     Returns a rectangle object of dimensions dx by dy tiled 
@@ -1349,6 +1422,16 @@ def new_camera(name='Cam',pos = (0,0,0), rotation = (pi/2,0,0), fl = 35, **kwarg
     cam.lens = fl
     ob_cam = bpy.data.objects.new(cam.name,cam)
     set_posrotar(ob_cam,pos,rotation)
+    return ob_cam
+
+def new_camera_orto(name='Cam',shift = (0,0), scale=1,height=1):
+    cam = bpy.data.cameras.new(name)    
+    cam.type = 'ORTHO'
+    cam.ortho_scale = scale
+    cam.shift_x = shift[0]
+    cam.shift_y = shift[1]
+    ob_cam = bpy.data.objects.new(cam.name,cam)
+    ob_cam.location = Vector((0,0,height))
     return ob_cam
 
 def new_equirectangular(name='Cam',pos = (0,0,0), rotation = (pi/2,0,0), **kwargs):
