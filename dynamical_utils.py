@@ -777,6 +777,18 @@ def bow_trans(t, x, C, V, Vt):
 def friction(x):
     return np.arctan(25*x)*np.exp(-2*np.abs(x))
 
+def predatorprey(t, x, A, B, C):
+    return [
+         x[0]*(1.0-x[0])-A*x[0]*x[1]/(x[0]+C),
+         B*x[1]*(1.0-x[1]/x[0]),
+    ]        
+    
+def fhn(t,x,A,B,G,I):
+    return [
+        x[0]*(1.0-x[0]*x[0]/3.0)-x[1]+I,
+        (A*x[0]+B-x[1])/G,
+    ]        
+
 # 2D forced
 
 def duffing_forced(t, x, B, C, A, w):
@@ -816,3 +828,4 @@ def chenlee(t, x, A, B, C):
         B*x[1]+x[2]*x[0],
         C*x[2]+x[0]*x[1]/3,
     ]    
+    
