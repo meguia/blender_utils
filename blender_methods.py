@@ -316,6 +316,73 @@ def bezier_from_pts(cname,ve,ve_h):
         pt.handle_left = list(2*Vector(ve[n])-Vector(ve_h[n]))
     return cc
 
+def circle_from_pts(cname,ve,ve_h):
+    """ Returns BEZIER curve of order from point list ve
+    handles are ALIGNED and right positioned at ve_h
+    """
+    cc = bpy.data.curves.new(name = cname, type='CURVE') 
+    cc.dimensions = '2D'
+    pl = cc.splines.new('BEZIER')
+    pl.use_cyclic_u = True
+    pl.bezier_points.add(len(ve)-1)
+    for n,pt in enumerate(pl.bezier_points):
+        pt.co = list(ve[n])
+        #pt.handle_left_type = 'ALIGNED'
+        #pt.handle_right_type = 'ALIGNED'
+        pt.handle_right = list(ve_h[n])
+        pt.handle_left = list(2*Vector(ve[n])-Vector(ve_h[n]))
+    return cc
+
+def circle_from_points(cname,ve,factor=0.5,bevel=0.0):
+    """ Returns BEZIER curve of order from point list ve
+    handles are ve[n+1]-ve[n]
+    """
+    cc = bpy.data.curves.new(name = cname, type='CURVE') 
+    cc.dimensions = '2D'
+    pl = cc.splines.new('BEZIER')
+    pl.use_cyclic_u = True
+    npts = len(ve)
+    pl.bezier_points.add(npts-1)
+    cc.bevel_depth = bevel 
+    for n,pt in enumerate(pl.bezier_points):
+        pt.co = Vector(ve[n])
+        #pt.handle_left_type = 'ALIGNED'
+        #pt.handle_right_type = 'ALIGNED'
+        if n==npts-1:
+            v0 = (Vector(ve[0])-Vector(ve[n-1]))
+            v1 = (Vector(ve[0])-Vector(ve[n]))
+            v2 = (Vector(ve[n])-Vector(ve[n-1]))
+        elif n==0:    
+            v0 = (Vector(ve[1])-Vector(ve[npts-1]))
+            v2 = (Vector(ve[0])-Vector(ve[npts-1]))
+            v1 = (Vector(ve[n+1])-Vector(ve[n]))
+        else:
+            v0 = (Vector(ve[n+1])-Vector(ve[n-1]))
+            v1 = (Vector(ve[n+1])-Vector(ve[n]))
+            v2 = (Vector(ve[n])-Vector(ve[n-1]))            
+        pt.handle_right =  Vector(ve[n]) + factor*v0*sqrt(v1.length)
+        pt.handle_left = Vector(ve[n]) - factor*v0*sqrt(v2.length)
+    return cc
+
+
+def circle_from_square(cname,ve,factor=0.2760625):
+    """ Returns BEZIER circle from four points in a square
+    ve is a list of vectors!
+    """
+    cc = bpy.data.curves.new(name = cname, type='CURVE') 
+    cc.dimensions = '2D'
+    d1 = Vector(ve[0])-Vector(ve[2])
+    d2 = Vector(ve[1])-Vector(ve[3])
+    diags = [d2,-d1,-d2,d1]
+    pl = cc.splines.new('BEZIER')
+    pl.use_cyclic_u = True
+    pl.bezier_points.add(3)    
+    for n,pt in enumerate(pl.bezier_points):
+        pt.co = Vector(ve[n])
+        pt.handle_right = pt.co + factor*diags[n]    
+        pt.handle_left = pt.co - factor*diags[n]
+    return cc
+
     
 # =====================================================================
 # MESH METHODS
@@ -831,7 +898,17 @@ def curve_bezier(name, ve=[[-1,0,0],[1,0,0]], theta=[-pi/4, pi/4], phi=None, pos
     ob = bpy.data.objects.new(cu.name,cu)
     ob.location = pos
     return ob    
-    
+
+def circle_curve(name, ve, square=True, pos=[0,0,0],factor=0.5,bevel=0.0):    
+    """ returns a circle of type BEZIER from list of four coplanar points in a square ve 
+    """
+    if square:
+        cu = circle_from_square(name,ve,factor=0.2760625,bevel=bevel)    
+    else:
+        cu = circle_from_points(name,ve,factor=factor,bevel=bevel)
+    ob = bpy.data.objects.new(cu.name,cu)
+    ob.location = pos
+    return ob
 
 # DATA MESH
 
